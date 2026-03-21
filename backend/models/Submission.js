@@ -37,6 +37,8 @@ const submissionSchema = new mongoose.Schema({
     },
     actualOutput: String,
     passed: Boolean,
+    isHidden: Boolean,
+    errorType: String,
     executionTime: Number, // in milliseconds
     memoryUsed: Number // in MB
   }],
@@ -50,6 +52,15 @@ const submissionSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  aiAnalysis: {
+    timeComplexity: String,
+    spaceComplexity: String,
+    readability: String,
+    naming: String,
+    optimization: String,
+    bugs: String,
+    bestPractices: String
+  },
   gradedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
@@ -62,6 +73,10 @@ const submissionSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now
+  },
+  isDraft: {
+    type: Boolean,
+    default: false
   }
 });
 

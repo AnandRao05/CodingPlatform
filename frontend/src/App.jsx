@@ -3,13 +3,12 @@ import useAuthStore from './stores/authStore';
 import Navigation from './components/Navigation';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
-import StudentLogin from './pages/StudentLogin';
-import TeacherLogin from './pages/TeacherLogin';
-import AdminLogin from './pages/AdminLogin';
 import StudentSignup from './pages/StudentSignup';
 import TeacherSignup from './pages/TeacherSignup';
-import Signup from './pages/Signup';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
+
 function App() {
   const { isAuthenticated, loading } = useAuthStore();
   // Show loading spinner while checking authentication
@@ -30,18 +29,13 @@ function App() {
         {/* Public routes - accessible when not authenticated */}
         <Route path="/" element={!isAuthenticated ? <LandingPage /> : <Navigate to="/dashboard" replace />} />
         <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" replace />} />
-        <Route path="/student/login" element={!isAuthenticated ? <StudentLogin /> : <Navigate to="/dashboard" replace />} />
-        <Route path="/teacher/login" element={!isAuthenticated ? <TeacherLogin /> : <Navigate to="/dashboard" replace />} />
-        <Route path="/admin/login" element={!isAuthenticated ? <AdminLogin /> : <Navigate to="/dashboard" replace />} />
-        <Route path="/student/signup" element={!isAuthenticated ? <StudentSignup /> : <Navigate to="/dashboard" replace />} />
-        <Route path="/teacher/signup" element={!isAuthenticated ? <TeacherSignup /> : <Navigate to="/dashboard" replace />} />
-        {/* Admin signup not allowed - only login */}
-        <Route path="/signup" element={!isAuthenticated ? <Signup /> : <Navigate to="/dashboard" replace />} />
-
+        <Route path="/forgot-password" element={!isAuthenticated ? <ForgotPassword /> : <Navigate to="/dashboard" replace />} />
+        <Route path="/reset-password/:token" element={!isAuthenticated ? <ResetPassword /> : <Navigate to="/dashboard" replace />} />
+        
         {/* Protected routes - only accessible when authenticated */}
         <Route path="/dashboard" element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" replace />} />
 
-        {/* Catch all route - redirect to appropriate page based on auth status */}
+        {/* Catch all route - redirect to /login if not auth */}
         <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
       </Routes>
     </BrowserRouter>

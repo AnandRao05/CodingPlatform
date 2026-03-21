@@ -13,6 +13,11 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     trim: true
   },
+  originalEmail: {
+    type: String,
+    lowercase: true,
+    trim: true
+  },
   password: {
     type: String,
     required: true,
@@ -22,6 +27,13 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['student', 'teacher', 'admin'],
     required: true
+  },
+  classId: {
+    type: String,
+    trim: true,
+    required: function() {
+      return this.role === 'student';
+    }
   },
   profile: {
     avatar: String,
@@ -45,7 +57,11 @@ const userSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now
-  }
+  },
+  resetPasswordToken: String,
+  resetPasswordExpires: Date,
+  otp: String,
+  otpExpires: Date
 });
 
 // Hash password before saving

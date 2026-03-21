@@ -9,7 +9,8 @@ const TeacherSignup = () => {
     password: '',
     confirmPassword: '',
     department: '',
-    employeeId: ''
+    employeeId: '',
+    classId: ''
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -40,6 +41,9 @@ const TeacherSignup = () => {
     } else if (formData.password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters long';
     }
+
+    // Class ID validation - not required for teachers in signup
+    // Teachers can set this later in their profile
 
     // Confirm password validation
     if (!formData.confirmPassword) {
@@ -78,9 +82,10 @@ const TeacherSignup = () => {
         email: formData.email.toLowerCase(),
         password: formData.password,
         role: 'teacher',
+        classId: formData.classId.trim() || undefined,
         profile: {
-          department: formData.department.trim(),
-          employeeId: formData.employeeId.trim()
+          department: formData.department.trim() || undefined,
+          employeeId: formData.employeeId.trim() || undefined
         }
       });
 
@@ -159,6 +164,19 @@ const TeacherSignup = () => {
           </div>
 
           <div>
+            <label className="block text-sm font-medium mb-1">Class ID (Optional)</label>
+            <input
+              type="text"
+              name="classId"
+              value={formData.classId}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              placeholder="Enter your class ID (e.g., CS101)"
+            />
+            <p className="text-xs text-gray-500 mt-1">You can set this later in your profile</p>
+          </div>
+
+          <div>
             <label className="block text-sm font-medium mb-1">Password</label>
             <input
               type="password"
@@ -204,7 +222,7 @@ const TeacherSignup = () => {
         <div className="mt-6 text-center">
           <p className="text-gray-600">
             Already have an account?{' '}
-            <Link to="/teacher/login" className="text-green-500 hover:text-green-700 font-medium">
+            <Link to="/login" className="text-green-500 hover:text-green-700 font-medium">
               Login here
             </Link>
           </p>

@@ -1,5 +1,9 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const User = require('../models/User');
+const Submission = require('../models/Submission');
+const Assignment = require('../models/Assignment');
+const Problem = require('../models/Problem');
 const { auth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
@@ -98,6 +102,7 @@ router.post('/', auth, requireRole(['admin']), async (req, res) => {
       email,
       password,
       role,
+      classId,
       profile = {},
       isActive = true
     } = req.body;
@@ -106,6 +111,12 @@ router.post('/', auth, requireRole(['admin']), async (req, res) => {
     if (!name || !email || !password || !role) {
       return res.status(400).json({
         message: 'Name, email, password, and role are required'
+      });
+    }
+
+    if ((role === 'student' || role === 'teacher') && !classId) {
+      return res.status(400).json({
+        message: 'Class ID is required for students and teachers'
       });
     }
 
@@ -127,6 +138,7 @@ router.post('/', auth, requireRole(['admin']), async (req, res) => {
       email: email.toLowerCase(),
       password,
       role,
+      classId,
       profile,
       isActive
     });
@@ -154,6 +166,7 @@ router.put('/:id', auth, requireRole(['admin']), async (req, res) => {
       name,
       email,
       role,
+      classId,
       profile,
       isActive
     } = req.body;
@@ -184,6 +197,7 @@ router.put('/:id', auth, requireRole(['admin']), async (req, res) => {
       user.role = role;
     }
     if (profile !== undefined) user.profile = { ...user.profile, ...profile };
+    if (classId !== undefined) user.classId = classId;
     if (isActive !== undefined) user.isActive = isActive;
 
     await user.save();
@@ -422,7 +436,7 @@ router.get('/student/progress', auth, requireRole(['student']), async (req, res)
     });
 
     // Get assignment progress
-    const assignments = await Assignment.find({ isActive: true })
+    const assignments = await mongoose.model('Assignment').find({ isActive: true })
       .populate('problems.problemId', 'title difficulty category');
 
     assignments.forEach(assignment => {
@@ -476,7 +490,7 @@ router.get('/teacher/overview', auth, requireRole(['teacher']), async (req, res)
     const teacherId = req.user._id;
 
     // Get total students count (students who have submitted to teacher's assignments)
-    const assignments = await Assignment.find({ teacherId, isActive: true }).select('_id');
+    const assignments = await mongoose.model('Assignment').find({ teacherId, isActive: true }).select('_id');
     const assignmentIds = assignments.map(a => a._id);
 
     const uniqueStudents = await Submission.distinct('studentId', {
@@ -489,7 +503,7 @@ router.get('/teacher/overview', auth, requireRole(['teacher']), async (req, res)
     const problemsCreated = await Problem.countDocuments({ createdBy: teacherId });
 
     // Get active assignments count (from "Assignments" section - active assignments)
-    const activeAssignments = await Assignment.countDocuments({
+    const activeAssignments = await mongoose.model('Assignment').countDocuments({
       teacherId,
       isActive: true,
       dueDate: { $gte: new Date() } // Due date is in the future
@@ -519,7 +533,7 @@ router.get('/admin/overview', auth, requireRole(['admin']), async (req, res) => 
     const totalProblems = await Problem.countDocuments({ isActive: true });
 
     // Get total assignments count
-    const totalAssignments = await Assignment.countDocuments({ isActive: true });
+    const totalAssignments = await mongoose.model('Assignment').countDocuments({ isActive: true });
 
     res.json({
       totalUsers,

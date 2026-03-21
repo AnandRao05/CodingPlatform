@@ -5,23 +5,18 @@ const Navigation = () => {
   const { user, logout, isAuthenticated } = useAuthStore();
 
   if (!isAuthenticated || !user) return null;
+  return null;
 
   const getNavLinks = () => {
     if (user.role === 'admin') {
-      return [
-        { to: '/dashboard', label: 'Dashboard' }
-      ];
+      return [];
     } else if (user.role === 'teacher') {
-      return [
-        { to: '/dashboard', label: 'Dashboard' }
-      ];
+      return [];
     } else {
-      return [
-        { to: '/dashboard', label: 'Dashboard' }
-      ];
+      return [];
     }
   };
-
+  
   return (
     <nav className="bg-blue-600 text-white p-4 shadow-md">
       <div className="container mx-auto flex justify-between items-center">

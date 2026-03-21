@@ -76,22 +76,14 @@ const CodeEditor = ({ onSubmit, isSubmitting, problem }) => {
 
       const result = await response.json();
 
-      if (!response.ok) {
-        throw new Error(result.message || 'Execution failed');
-      }
-
-      if (result.stdout) {
-        setOutput(result.stdout);
+      if (result.success) {
+        setOutput(result.output || result.stdout || '');
+        setError('');
         setRunResult({ type: 'success', message: 'Code executed successfully' });
-      } else if (result.stderr) {
-        setError(result.stderr);
-        setRunResult({ type: 'error', message: 'Runtime error occurred' });
-      } else if (result.compile_output) {
-        setError(result.compile_output);
-        setRunResult({ type: 'error', message: 'Compilation error occurred' });
       } else {
-        setOutput('Code executed successfully (no output)');
-        setRunResult({ type: 'success', message: 'Code executed successfully' });
+        setError(result.message || result.type || 'Execution failed');
+        setOutput('');
+        setRunResult({ type: 'error', message: result.type || 'Error', detail: result.message });
       }
     } catch (err) {
       setError(err.message || 'Failed to execute code');

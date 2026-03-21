@@ -28,11 +28,13 @@ const codeRoutes = require('./routes/code');
 const problemRoutes = require('./routes/problems');
 const assignmentRoutes = require('./routes/assignments');
 const userRoutes = require('./routes/users');
+const submissionRoutes = require('./routes/submissions');
 app.use('/api/auth', authRoutes);
 app.use('/api/code', codeRoutes);
 app.use('/api/problems', problemRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/submissions', submissionRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

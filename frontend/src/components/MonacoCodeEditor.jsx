@@ -10,14 +10,19 @@ const MonacoCodeEditor = ({ onSubmit, isSubmitting, problem, assignment }) => {
   const [customInput, setCustomInput] = useState('');
   const [executionResult, setExecutionResult] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  const [showSettings, setShowSettings] = useState({ activeTab: 'input' });
   const [fontSize, setFontSize] = useState(14);
   const [theme, setTheme] = useState('vs-dark');
-  const [showMinimap, setShowMinimap] = useState(true);
-  const [wordWrap, setWordWrap] = useState('on');
   const [savedTestCases, setSavedTestCases] = useState([]);
   const [currentTestCase, setCurrentTestCase] = useState('');
+  const [testCases, setTestCases] = useState([
+    { id: 1, input: '', expectedOutput: '', name: 'Test Case 1', passed: null, actualOutput: '' }
+  ]);
+  const [activeTestCase, setActiveTestCase] = useState(0);
+  const [runAllTests, setRunAllTests] = useState(false);
+  const [consoleLogs, setConsoleLogs] = useState([]);
   const editorRef = useRef(null);
+  const monacoRef = useRef(null);
 
   // Language options with Monaco language IDs and enhanced templates
   const languages = [
@@ -312,6 +317,7 @@ console.log("Solution result:", result);`,
   // Editor mount handler
   const handleEditorDidMount = (editor, monaco) => {
     editorRef.current = editor;
+    monacoRef.current = monaco;
 
     // Configure Monaco Editor themes
     monaco.editor.defineTheme('customDark', {
@@ -322,6 +328,8 @@ console.log("Solution result:", result);`,
         { token: 'keyword', foreground: '569CD6' },
         { token: 'string', foreground: 'CE9178' },
         { token: 'number', foreground: 'B5CEA8' },
+        // Syntax error highlighting
+        { token: 'syntax-error', foreground: 'FF0000', fontStyle: 'bold underline' },
       ],
       colors: {
         'editor.background': '#1f2937',
@@ -331,6 +339,9 @@ console.log("Solution result:", result);`,
         'editorCursor.foreground': '#d4d4d4',
         'editorError.foreground': '#f48771',
         'editorWarning.foreground': '#cca700',
+        // Custom syntax error colors
+        'editorError.background': '#ff000033',
+        'editorError.border': '#ff0000',
       }
     });
 
@@ -342,6 +353,8 @@ console.log("Solution result:", result);`,
         { token: 'keyword', foreground: '0000FF' },
         { token: 'string', foreground: 'A31515' },
         { token: 'number', foreground: '098658' },
+        // Syntax error highlighting
+        { token: 'syntax-error', foreground: 'FF0000', fontStyle: 'bold underline' },
       ],
       colors: {
         'editor.background': '#ffffff',
@@ -351,6 +364,9 @@ console.log("Solution result:", result);`,
         'editorCursor.foreground': '#000000',
         'editorError.foreground': '#e45649',
         'editorWarning.foreground': '#cca700',
+        // Custom syntax error colors
+        'editorError.background': '#ff000033',
+        'editorError.border': '#ff0000',
       }
     });
 
@@ -369,11 +385,71 @@ console.log("Solution result:", result);`,
       noSuggestionDiagnostics: false
     });
 
-    // Enable syntax validation for supported languages
-    const supportedLanguages = ['javascript', 'typescript'];
-    if (supportedLanguages.includes(language)) {
-      // Monaco provides built-in syntax checking for JS/TS
-      // For other languages, syntax errors will be shown after execution
+    // Enable syntax validation for all supported languages
+    const supportedLanguages = ['javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp', 'go', 'rust', 'php', 'ruby'];
+
+    // Configure language-specific validation
+    if (language === 'python') {
+      monaco.languages.setMonarchTokensProvider('python', {
+        tokenizer: {
+          root: [
+            // Keywords
+            [/\b(and|as|assert|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|not|or|pass|raise|return|try|while|with|yield)\b/, 'keyword'],
+            // Built-in functions
+            [/\b(len|print|input|range|str|int|float|list|dict|set|tuple|open|close|read|write)\b/, 'keyword.control'],
+            // Strings
+            [/"([^"\\]|\\.)*$/, 'string.invalid'],  // non-terminated string
+            [/'([^'\\]|\\.)*$/, 'string.invalid'],  // non-terminated string
+            [/"/, 'string', '@string_double'],
+            [/'/, 'string', '@string_single'],
+            // Comments
+            [/#.*$/, 'comment'],
+            // Numbers
+            [/\d*\.\d+([eE][\-+]?\d+)?/, 'number.float'],
+            [/\d+[eE][\-+]?\d+/, 'number.float'],
+            [/\d+/, 'number'],
+            // Identifiers
+            [/[a-zA-Z_]\w*/, 'identifier'],
+          ],
+          string_double: [
+            [/[^\\"]+/, 'string'],
+            [/\\./, 'string.escape'],
+            [/"/, 'string', '@pop']
+          ],
+          string_single: [
+            [/[^\\']+/, 'string'],
+            [/\\./, 'string.escape'],
+            [/'/, 'string', '@pop']
+          ]
+        }
+      });
+    }
+
+    // Add real-time syntax error detection
+    const model = editor.getModel();
+    if (model) {
+      // Listen for content changes to provide real-time feedback
+      model.onDidChangeContent(() => {
+        const markers = monaco.editor.getModelMarkers({ resource: model.uri });
+        const syntaxErrors = markers.filter(marker => marker.severity === monaco.MarkerSeverity.Error);
+
+        // Update editor decorations for syntax errors
+        const decorations = syntaxErrors.map(error => ({
+          range: new monaco.Range(
+            error.startLineNumber,
+            error.startColumn,
+            error.endLineNumber || error.startLineNumber,
+            error.endColumn || error.startColumn + 1
+          ),
+          options: {
+            className: 'syntax-error-decoration',
+            hoverMessage: { value: error.message },
+            inlineClassName: 'syntax-error-inline'
+          }
+        }));
+
+        editor.deltaDecorations([], decorations);
+      });
     }
 
     // Add keyboard shortcuts
@@ -393,7 +469,163 @@ console.log("Solution result:", result);`,
     return selectedLang ? selectedLang.judge0Id : 63; // Default to JavaScript
   };
 
-  // Run code handler with syntax error detection
+
+
+  // Submit solution handler
+  const handleSubmitSolution = () => {
+    if (!code.trim()) {
+      alert('Please write some code first');
+      return;
+    }
+
+    if (onSubmit) {
+      onSubmit(code, language);
+    }
+  };
+
+  // Run all test cases
+  const handleRunAllTests = async () => {
+    if (!code.trim()) {
+      alert('Please write some code first');
+      return;
+    }
+
+    setIsRunning(true);
+    setExecutionResult(null);
+    setRunAllTests(true);
+    setConsoleLogs([]); // Clear console logs
+
+    const updatedTestCases = [...testCases];
+    const logs = [];
+
+    logs.push({
+      id: Date.now(),
+      type: 'info',
+      content: `Running ${testCases.length} test case(s) with ${languages.find(l => l.id === language)?.name}...`,
+      timestamp: new Date().toLocaleTimeString()
+    });
+
+    for (let i = 0; i < updatedTestCases.length; i++) {
+      const testCase = updatedTestCases[i];
+
+      logs.push({
+        id: Date.now() + i + 1,
+        type: 'info',
+        content: `Test Case ${i + 1}: Running...`,
+        timestamp: new Date().toLocaleTimeString()
+      });
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/code/execute`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getAuthHeaders()
+          },
+          body: JSON.stringify({
+            source_code: code,
+            language_id: getJudge0LanguageId(language),
+            stdin: testCase.input || ''
+          })
+        });
+
+        const result = await response.json();
+
+        // Backend always returns 200 with structured { success, type, message, output }
+        if (result.success) {
+          const actualOutput = (result.output || result.stdout || '').trim();
+          const expectedOutput = testCase.expectedOutput.trim();
+          const passed = actualOutput === expectedOutput;
+
+          updatedTestCases[i] = {
+            ...testCase,
+            actualOutput,
+            passed,
+            hasError: false
+          };
+
+          logs.push({
+            id: Date.now() + i + 200,
+            type: passed ? 'success' : 'error',
+            content: `Test Case ${i + 1}: ${passed ? '✅ PASSED' : '❌ FAILED'} - Expected: "${expectedOutput}", Got: "${actualOutput}"`,
+            timestamp: new Date().toLocaleTimeString()
+          });
+        } else {
+          const errorMsg = result.message || result.type || 'Execution failed';
+          updatedTestCases[i] = {
+            ...testCase,
+            actualOutput: errorMsg,
+            passed: false,
+            hasError: true
+          };
+
+          logs.push({
+            id: Date.now() + i + 300,
+            type: 'error',
+            content: `Test Case ${i + 1}: 🚫 ${result.type || 'ERROR'} - ${errorMsg}`,
+            timestamp: new Date().toLocaleTimeString(),
+            isExecutionError: true
+          });
+        }
+      } catch (error) {
+        updatedTestCases[i] = {
+          ...testCase,
+          actualOutput: 'Network error',
+          passed: false,
+          hasError: true
+        };
+
+        logs.push({
+          id: Date.now() + i + 400,
+          type: 'error',
+          content: `Test Case ${i + 1}: 🚫 NETWORK ERROR - Failed to execute test case`,
+          timestamp: new Date().toLocaleTimeString(),
+          isNetworkError: true
+        });
+      }
+    }
+
+    setTestCases(updatedTestCases);
+    setConsoleLogs(logs);
+    setRunAllTests(false);
+    setIsRunning(false);
+
+    // Calculate overall result
+    const passedTests = updatedTestCases.filter(tc => tc.passed).length;
+    const totalTests = updatedTestCases.length;
+    const hasAnyErrors = updatedTestCases.some(tc => tc.hasError);
+
+    if (hasAnyErrors) {
+      logs.push({
+        id: Date.now() + 1000,
+        type: 'error',
+        content: `❌ Test execution completed with errors. ${passedTests}/${totalTests} tests passed.`,
+        timestamp: new Date().toLocaleTimeString()
+      });
+    } else {
+      logs.push({
+        id: Date.now() + 1000,
+        type: 'success',
+        content: `✅ All tests completed. ${passedTests}/${totalTests} tests passed.`,
+        timestamp: new Date().toLocaleTimeString()
+      });
+    }
+
+    setConsoleLogs(logs);
+
+    setExecutionResult({
+      success: passedTests === totalTests && !hasAnyErrors,
+      testResults: updatedTestCases,
+      passedTests,
+      totalTests,
+      message: hasAnyErrors
+        ? `Tests completed with errors. ${passedTests}/${totalTests} passed.`
+        : `All tests passed! ${passedTests}/${totalTests} successful.`
+    });
+  };
+
+
+  // Enhanced run code with console logging and input/output testing
   const handleRunCode = async () => {
     if (!code.trim()) {
       alert('Please write some code first');
@@ -402,6 +634,9 @@ console.log("Solution result:", result);`,
 
     setIsRunning(true);
     setExecutionResult(null);
+    setConsoleLogs([]); // Clear previous console logs
+
+    const logs = [];
 
     try {
       const response = await fetch(`${API_BASE_URL}/code/execute`, {
@@ -419,50 +654,75 @@ console.log("Solution result:", result);`,
 
       const result = await response.json();
 
-      if (response.ok) {
-        // Check for syntax/compilation errors with detailed analysis
-        const hasSyntaxErrors = result.compile_output ||
-                               (result.stderr && (
-                                 result.stderr.toLowerCase().includes('syntax') ||
-                                 result.stderr.toLowerCase().includes('error') ||
-                                 result.stderr.toLowerCase().includes('undefined') ||
-                                 result.stderr.toLowerCase().includes('expected') ||
-                                 result.stderr.toLowerCase().includes('unexpected')
-                               ));
-
-        // Extract detailed error information
-        let detailedError = '';
-        if (result.compile_output) {
-          detailedError = result.compile_output;
-        } else if (result.stderr) {
-          detailedError = result.stderr;
-        } else if (result.message && result.message.toLowerCase().includes('error')) {
-          detailedError = result.message;
-        }
-
+      // Backend always returns 200 with structured { success, type, message, output }
+      if (result.success) {
         setExecutionResult({
-          success: !hasSyntaxErrors,
-          stdout: result.stdout || '',
+          success: true,
+          stdout: result.output || result.stdout || '',
           stderr: result.stderr || '',
           compile_output: result.compile_output || '',
           message: result.message || '',
           time: result.time,
           memory: result.memory,
-          hasSyntaxErrors: hasSyntaxErrors,
-          detailedError: detailedError
+          hasSyntaxErrors: false,
+          detailedError: '',
+          errorLine: null
         });
       } else {
-        // Handle API errors with more detail
-        const errorMessage = result.error || result.message || `Request failed with status code ${response.status}`;
+        const errorMessage = result.message || result.type || 'Execution failed';
+        const isTimeout = result.type === 'Timeout Error' || result.timeout;
+
+        logs.push({
+          id: Date.now(),
+          type: 'error',
+          content: `${result.type || 'ERROR'}: ${errorMessage}`,
+          timestamp: new Date().toLocaleTimeString(),
+          isExecutionError: true,
+          isTimeout
+        });
+
+        setConsoleLogs(logs);
         setExecutionResult({
           success: false,
           error: errorMessage,
-          hasSyntaxErrors: true,
-          detailedError: errorMessage
+          hasSyntaxErrors: ['Compilation Error', 'Syntax Error'].includes(result.type),
+          detailedError: errorMessage,
+          isTimeout,
+          type: result.type
         });
+
+        // Highlight error line in editor if available
+        const detailedError = errorMessage;
+        const lineMatch = detailedError.match(/line (\d+)/i) || detailedError.match(/:(\d+):/);
+        const errorLine = lineMatch ? parseInt(lineMatch[1]) : null;
+        const monaco = monacoRef.current;
+        if (errorLine && editorRef.current && monaco) {
+          const model = editorRef.current.getModel();
+          if (model && errorLine <= model.getLineCount()) {
+            const lineLen = model.getLineLength(errorLine) || 1;
+            editorRef.current.deltaDecorations([], [{
+              range: new monaco.Range(errorLine, 1, errorLine, lineLen + 1),
+              options: {
+                className: 'syntax-error-line',
+                hoverMessage: { value: detailedError },
+                linesDecorationsClassName: 'syntax-error-line-decoration'
+              }
+            }]);
+          }
+        }
       }
     } catch (error) {
       console.error('Code execution error:', error);
+
+      const logs = [{
+        id: Date.now(),
+        type: 'error',
+        content: '🚫 NETWORK ERROR: Failed to execute code. Please check your connection.',
+        timestamp: new Date().toLocaleTimeString(),
+        isNetworkError: true
+      }];
+
+      setConsoleLogs(logs);
       setExecutionResult({
         success: false,
         error: 'Failed to execute code. Please try again.',
@@ -470,18 +730,6 @@ console.log("Solution result:", result);`,
       });
     } finally {
       setIsRunning(false);
-    }
-  };
-
-  // Submit solution handler
-  const handleSubmitSolution = () => {
-    if (!code.trim()) {
-      alert('Please write some code first');
-      return;
-    }
-
-    if (onSubmit) {
-      onSubmit(code, language);
     }
   };
 
@@ -508,6 +756,37 @@ console.log("Solution result:", result);`,
     if (selectedLang && confirm('Reset code to default template?')) {
       setCode(selectedLang.defaultCode);
     }
+  };
+
+  // Add new test case
+  const handleAddTestCase = () => {
+    const newTestCase = {
+      id: Date.now(),
+      input: '',
+      expectedOutput: '',
+      name: `Test Case ${testCases.length + 1}`,
+      passed: null,
+      actualOutput: ''
+    };
+    setTestCases(prev => [...prev, newTestCase]);
+    setActiveTestCase(testCases.length);
+  };
+
+  // Remove test case
+  const handleRemoveTestCase = (index) => {
+    if (testCases.length > 1) {
+      setTestCases(prev => prev.filter((_, i) => i !== index));
+      if (activeTestCase >= index && activeTestCase > 0) {
+        setActiveTestCase(activeTestCase - 1);
+      }
+    }
+  };
+
+  // Update test case
+  const handleUpdateTestCase = (index, field, value) => {
+    setTestCases(prev => prev.map((tc, i) =>
+      i === index ? { ...tc, [field]: value } : tc
+    ));
   };
 
   // Save current test case
@@ -606,6 +885,7 @@ console.log("Solution result:", result);`,
               )}
             </button>
 
+
             <button
               onClick={handleSubmitSolution}
               disabled={isSubmitting}
@@ -626,28 +906,8 @@ console.log("Solution result:", result);`,
             </button>
           </div>
 
-          {/* File Operations */}
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={handleExportCode}
-              className="px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600 transition-colors"
-              title="Export Code"
-            >
-              <Download size={14} className="inline mr-1" />
-              Export
-            </button>
 
-            <label className="px-3 py-1 bg-purple-500 text-white text-sm rounded hover:bg-purple-600 transition-colors cursor-pointer">
-              <Upload size={14} className="inline mr-1" />
-              Import
-              <input
-                type="file"
-                accept=".js,.py,.java,.cpp,.c,.cs,.go,.rs,.rb,.php,.ts,.txt"
-                onChange={handleImportCode}
-                className="hidden"
-              />
-            </label>
-          </div>
+
 
           {/* Settings Toggle */}
           <button
@@ -664,7 +924,7 @@ console.log("Solution result:", result);`,
         {/* Settings Panel */}
         {showSettings && (
           <div className="mt-4 pt-4 border-t border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Theme</label>
                 <select
@@ -691,176 +951,357 @@ console.log("Solution result:", result);`,
                   <option value="20">20px</option>
                 </select>
               </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Minimap</label>
-                <select
-                  value={showMinimap.toString()}
-                  onChange={(e) => setShowMinimap(e.target.value === 'true')}
-                  className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value="true">Show</option>
-                  <option value="false">Hide</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Word Wrap</label>
-                <select
-                  value={wordWrap}
-                  onChange={(e) => setWordWrap(e.target.value)}
-                  className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value="on">On</option>
-                  <option value="off">Off</option>
-                  <option value="wordWrapColumn">Column</option>
-                </select>
-              </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* Monaco Editor */}
+      {/* Monaco Editor with Input/Output */}
       <div className="border border-gray-300 rounded-lg overflow-hidden">
-        <Editor
-          height="400px"
-          language={languages.find(lang => lang.id === language)?.monacoId || 'javascript'}
-          value={code}
-          onChange={setCode}
-          onMount={handleEditorDidMount}
-          options={{
-            minimap: { enabled: showMinimap },
-            fontSize: fontSize,
-            lineNumbers: 'on',
-            roundedSelection: false,
-            scrollBeyondLastLine: false,
-            automaticLayout: true,
-            tabSize: 2,
-            wordWrap: wordWrap,
-            folding: true,
-            lineDecorationsWidth: 10,
-            lineNumbersMinChars: 3,
-            renderWhitespace: 'selection',
-            cursorBlinking: 'blink',
-            cursorStyle: 'line',
-            contextmenu: true,
-            mouseWheelZoom: true,
-            multiCursorModifier: 'ctrlCmd',
-            quickSuggestions: {
-              other: true,
-              comments: true,
-              strings: true
-            },
-            parameterHints: {
-              enabled: true
-            },
-            suggestOnTriggerCharacters: true,
-            acceptSuggestionOnEnter: 'on',
-            tabCompletion: 'on',
-            wordBasedSuggestions: true,
-            snippetSuggestions: 'inline',
-            bracketPairColorization: {
-              enabled: true
-            },
-            guides: {
-              bracketPairs: true,
-              indentation: true
-            },
-            smoothScrolling: true,
-            cursorSmoothCaretAnimation: 'on',
-            renderLineHighlight: 'line',
-            selectionHighlight: true,
-            occurrencesHighlight: true,
-            codeLens: true,
-            colorDecorators: true,
-            lightbulb: {
-              enabled: 'on'
-            },
-            hover: {
-              enabled: true,
-              delay: 300
-            },
-            links: true,
-            unicodeHighlight: {
-              ambiguousCharacters: true
-            }
-          }}
-          theme="vs-dark"
-        />
-      </div>
+        {/* Input/Output Section - Above Editor */}
+        <div className="bg-gray-50 border-b border-gray-200 p-3">
+          {/* Tabs for Input/Output */}
+          <div className="flex space-x-1 mb-3">
+            <button
+              onClick={() => setShowSettings(prev => ({ ...prev, activeTab: 'input' }))}
+              className={`px-3 py-1 text-sm rounded transition-colors ${
+                showSettings.activeTab === 'input' || !showSettings.activeTab
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              📥 Input
+            </button>
+            <button
+              onClick={() => setShowSettings(prev => ({ ...prev, activeTab: 'output' }))}
+              className={`px-3 py-1 text-sm rounded transition-colors ${
+                showSettings.activeTab === 'output'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              📤 Output
+            </button>
+          </div>
 
-      {/* Input/Output Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Custom Input */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="block text-sm font-medium text-gray-700">
-              Input:
-            </label>
-            <div className="flex space-x-2">
-              <button
-                onClick={handleSaveTestCase}
-                disabled={!customInput.trim()}
-                className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 disabled:bg-green-300 transition-colors"
-                title="Save Test Case"
-              >
-                Save
-              </button>
-              <select
-                value={currentTestCase}
-                onChange={(e) => handleLoadTestCase(e.target.value)}
-                className="px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="">Load Test Case</option>
-                {savedTestCases.filter(tc => tc.language === language).map(tc => (
-                  <option key={tc.id} value={tc.id}>
-                    {tc.name}
-                  </option>
-                ))}
-              </select>
+          {/* Input Tab Content */}
+          {(showSettings.activeTab === 'input' || !showSettings.activeTab) && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">Program Input:</label>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs text-gray-500">
+                    {customInput.length} chars, {customInput.split('\n').length} lines
+                  </span>
+                  <button
+                    onClick={() => setCustomInput('')}
+                    className="px-2 py-1 bg-gray-500 text-white text-xs rounded hover:bg-gray-600 transition-colors"
+                    title="Clear Input"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+              <textarea
+                value={customInput}
+                onChange={(e) => setCustomInput(e.target.value)}
+                placeholder="Enter input for your program here...&#10;&#10;Example:&#10;5&#10;1 2 3 4 5"
+                className="w-full px-2 py-1 border border-gray-300 rounded text-sm font-mono h-16 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                spellCheck="false"
+              />
             </div>
-          </div>
-          <textarea
-            value={customInput}
-            onChange={(e) => setCustomInput(e.target.value)}
-            placeholder={`Enter input for your ${languages.find(l => l.id === language)?.name} code...`}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm h-32 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-            spellCheck="false"
-          />
-          <div className="text-xs text-gray-500">
-            {savedTestCases.filter(tc => tc.language === language).length} saved test cases for {languages.find(l => l.id === language)?.name}
-          </div>
-        </div>
+          )}
 
-        {/* Expected Output */}
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
-            Output:
-          </label>
-          <textarea
-            value={
-              executionResult?.hasSyntaxErrors
-                ? (executionResult.detailedError || executionResult.compile_output || executionResult.stderr || executionResult.error || 'Syntax error detected')
-                : (executionResult?.stdout || '')
-            }
-            readOnly
-            placeholder="Run your code to see output here..."
-            className={`w-full px-3 py-2 border rounded-lg font-mono text-sm h-32 focus:outline-none resize-none ${
-              executionResult?.hasSyntaxErrors
-                ? 'border-red-300 bg-red-50 text-red-800'
-                : 'border-gray-300 bg-gray-50 text-gray-800'
-            }`}
-            spellCheck="false"
-          />
-          {executionResult && (
-            <div className={`text-xs ${
-              executionResult.hasSyntaxErrors ? 'text-red-600' : 'text-gray-500'
-            }`}>
-              {executionResult.hasSyntaxErrors ? 'Syntax error - check details below' : 'Output from last execution'}
+          {/* Output Tab Content */}
+          {showSettings.activeTab === 'output' && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">Program Output:</label>
+                <div className="flex items-center space-x-2">
+                  {executionResult && (
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      executionResult.success
+                        ? 'bg-green-100 text-green-800'
+                        : executionResult.hasSyntaxErrors
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {executionResult.success ? '✅ Success' :
+                       executionResult.hasSyntaxErrors ? '🚫 Error' : '⚠️ Warning'}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => setExecutionResult(null)}
+                    className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition-colors"
+                    title="Clear Output"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+              <div className={`w-full px-2 py-1 border rounded text-sm font-mono h-16 overflow-y-auto ${
+                executionResult
+                  ? executionResult.success
+                    ? 'border-green-300 bg-green-50 text-green-800'
+                    : executionResult.hasSyntaxErrors
+                    ? 'border-red-300 bg-red-50 text-red-800'
+                    : 'border-yellow-300 bg-yellow-50 text-yellow-800'
+                  : 'border-gray-300 bg-white text-gray-800'
+              }`}>
+                {executionResult ? (
+                  <div className="space-y-1">
+                    {executionResult.stdout && (
+                      <div>
+                        <div className="text-xs font-medium text-gray-600">📤 OUTPUT:</div>
+                        <pre className="whitespace-pre-wrap text-xs leading-tight">{executionResult.stdout}</pre>
+                      </div>
+                    )}
+                    {executionResult.stderr && (
+                      <div>
+                        <div className="text-xs font-medium text-red-600">⚠️ ERROR:</div>
+                        <pre className="whitespace-pre-wrap text-xs text-red-700 leading-tight">{executionResult.stderr}</pre>
+                      </div>
+                    )}
+                    {executionResult.compile_output && (
+                      <div>
+                        <div className="text-xs font-medium text-orange-600">🔧 COMPILATION:</div>
+                        <pre className="whitespace-pre-wrap text-xs text-orange-700 leading-tight">{executionResult.compile_output}</pre>
+                      </div>
+                    )}
+                    {!executionResult.stdout && !executionResult.stderr && !executionResult.compile_output && (
+                      <div className="text-gray-500 italic text-xs">
+                        No output generated
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-gray-500 italic text-xs h-full flex items-center justify-center">
+                    Click "Run Code" to see output here
+                  </div>
+                )}
+              </div>
+              {executionResult && (executionResult.time || executionResult.memory) && (
+                <div className="flex items-center space-x-4 text-xs text-gray-500 mt-1">
+                  {executionResult.time && <span>⏱️ {executionResult.time}s</span>}
+                  {executionResult.memory && <span>💾 {executionResult.memory}KB</span>}
+                </div>
+              )}
             </div>
           )}
         </div>
+
+        {/* Monaco Editor with Scroll and Touch Support */}
+        <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200 hover:scrollbar-thumb-gray-500 touch-pan-y">
+          <Editor
+            height="880px"
+            language={languages.find(lang => lang.id === language)?.monacoId || 'javascript'}
+            value={code}
+            onChange={setCode}
+            onMount={handleEditorDidMount}
+            options={{
+              minimap: { enabled: false },
+              fontSize: fontSize,
+              lineNumbers: 'on',
+              roundedSelection: false,
+              scrollBeyondLastLine: false,
+              automaticLayout: true,
+              tabSize: 2,
+              wordWrap: 'off',
+              folding: true,
+              lineDecorationsWidth: 10,
+              lineNumbersMinChars: 3,
+              renderWhitespace: 'selection',
+              cursorBlinking: 'blink',
+              cursorStyle: 'line',
+              contextmenu: true,
+              mouseWheelZoom: true,
+              multiCursorModifier: 'ctrlCmd',
+              quickSuggestions: {
+                other: true,
+                comments: true,
+                strings: true
+              },
+              parameterHints: {
+                enabled: true
+              },
+              suggestOnTriggerCharacters: true,
+              acceptSuggestionOnEnter: 'on',
+              tabCompletion: 'on',
+              wordBasedSuggestions: true,
+              snippetSuggestions: 'inline',
+              bracketPairColorization: {
+                enabled: true
+              },
+              guides: {
+                bracketPairs: true,
+                indentation: true
+              },
+              smoothScrolling: true,
+              cursorSmoothCaretAnimation: 'on',
+              renderLineHighlight: 'line',
+              selectionHighlight: true,
+              occurrencesHighlight: true,
+              codeLens: true,
+              colorDecorators: true,
+              lightbulb: {
+                enabled: 'on'
+              },
+              hover: {
+                enabled: true,
+                delay: 300
+              },
+              links: true,
+              unicodeHighlight: {
+                ambiguousCharacters: true
+              }
+            }}
+            theme="vs-dark"
+          />
+        </div>
+
+      </div>
+
+
+      {/* Test Cases Section */}
+      <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-800">Test Cases</h3>
+          <div className="flex space-x-2">
+            <button
+              onClick={handleAddTestCase}
+              className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors"
+            >
+              + Add Test Case
+            </button>
+          </div>
+        </div>
+
+        {/* Test Case Tabs */}
+        <div className="flex space-x-1 mb-4 overflow-x-auto">
+          {testCases.map((testCase, index) => (
+            <button
+              key={testCase.id}
+              onClick={() => setActiveTestCase(index)}
+              className={`px-3 py-2 rounded-t-lg text-sm font-medium whitespace-nowrap ${
+                activeTestCase === index
+                  ? 'bg-white text-blue-600 border-t border-l border-r border-gray-300'
+                  : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+              } ${
+                testCase.passed === true ? 'bg-green-100 text-green-700' :
+                testCase.passed === false ? 'bg-red-100 text-red-700' : ''
+              }`}
+            >
+              {testCase.name}
+              {testCase.passed === true && <span className="ml-1 text-green-600">✓</span>}
+              {testCase.passed === false && <span className="ml-1 text-red-600">✗</span>}
+            </button>
+          ))}
+        </div>
+
+        {/* Active Test Case Content */}
+        {testCases[activeTestCase] && (
+          <div className="bg-white p-4 rounded-lg border">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Input */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-gray-700">Input:</label>
+                  {testCases.length > 1 && (
+                    <button
+                      onClick={() => handleRemoveTestCase(activeTestCase)}
+                      className="text-red-500 hover:text-red-700 text-sm"
+                      title="Remove Test Case"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  value={testCases[activeTestCase].input}
+                  onChange={(e) => handleUpdateTestCase(activeTestCase, 'input', e.target.value)}
+                  placeholder="Enter input for this test case..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm h-32 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  spellCheck="false"
+                />
+              </div>
+
+              {/* Expected Output */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Expected Output:</label>
+                <textarea
+                  value={testCases[activeTestCase].expectedOutput}
+                  onChange={(e) => handleUpdateTestCase(activeTestCase, 'expectedOutput', e.target.value)}
+                  placeholder="Enter expected output..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm h-32 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  spellCheck="false"
+                />
+              </div>
+            </div>
+
+            {/* Actual Output (shown after running tests) */}
+            {testCases[activeTestCase].actualOutput && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">Your Output:</label>
+                    <textarea
+                      value={testCases[activeTestCase].actualOutput}
+                      readOnly
+                      className={`w-full px-3 py-2 border rounded-lg font-mono text-sm h-24 resize-none ${
+                        testCases[activeTestCase].passed === true
+                          ? 'border-green-300 bg-green-50 text-green-800'
+                          : testCases[activeTestCase].passed === false
+                          ? 'border-red-300 bg-red-50 text-red-800'
+                          : 'border-gray-300 bg-gray-50 text-gray-800'
+                      }`}
+                      spellCheck="false"
+                    />
+                  </div>
+                  <div className="flex items-center justify-center">
+                    <div className={`text-center p-4 rounded-lg ${
+                      testCases[activeTestCase].passed === true
+                        ? 'bg-green-100 text-green-800'
+                        : testCases[activeTestCase].passed === false
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {testCases[activeTestCase].passed === true && (
+                        <div>
+                          <div className="text-2xl">✅</div>
+                          <div className="font-medium">PASSED</div>
+                        </div>
+                      )}
+                      {testCases[activeTestCase].passed === false && (
+                        <div>
+                          <div className="text-2xl">❌</div>
+                          <div className="font-medium">FAILED</div>
+                        </div>
+                      )}
+                      {testCases[activeTestCase].passed === null && (
+                        <div>
+                          <div className="text-2xl">⏳</div>
+                          <div className="font-medium">NOT RUN</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Test Results Summary */}
+        {executionResult?.testResults && (
+          <div className="mt-4 p-4 bg-white rounded-lg border">
+            <h4 className="font-medium text-gray-800 mb-2">Test Results Summary</h4>
+            <div className="flex items-center space-x-4 text-sm">
+              <span className="text-green-600">✅ {executionResult.passedTests} Passed</span>
+              <span className="text-red-600">❌ {executionResult.totalTests - executionResult.passedTests} Failed</span>
+              <span className="text-gray-600">Total: {executionResult.totalTests}</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Problem Test Cases (if available) */}
@@ -899,65 +1340,7 @@ console.log("Solution result:", result);`,
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={handleRunCode}
-              disabled={isRunning}
-              className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-green-300 transition-colors flex items-center space-x-2 font-medium"
-            >
-              {isRunning ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>Running...</span>
-                </>
-              ) : (
-                <>
-                  <Play size={16} />
-                  <span>Run Code</span>
-                </>
-              )}
-            </button>
 
-            <button
-              onClick={handleSubmitSolution}
-              disabled={isSubmitting}
-              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300 transition-colors flex items-center space-x-2 font-medium"
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>Submitting...</span>
-                </>
-              ) : (
-                <>
-                  <Send size={16} />
-                  <span>Submit Solution</span>
-                </>
-              )}
-            </button>
-          </div>
-
-          <div className="flex items-center space-x-4 text-sm text-gray-600">
-            <div className="flex items-center space-x-1">
-              <kbd className="px-2 py-1 bg-gray-200 rounded text-xs">Ctrl</kbd>
-              <span>+</span>
-              <kbd className="px-2 py-1 bg-gray-200 rounded text-xs">Enter</kbd>
-              <span>= Run Code</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <kbd className="px-2 py-1 bg-gray-200 rounded text-xs">Shift</kbd>
-              <span>+</span>
-              <kbd className="px-2 py-1 bg-gray-200 rounded text-xs">Alt</kbd>
-              <span>+</span>
-              <kbd className="px-2 py-1 bg-gray-200 rounded text-xs">F</kbd>
-              <span>= Format</span>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Execution Results */}
       {executionResult && (
@@ -965,16 +1348,23 @@ console.log("Solution result:", result);`,
           {/* Header */}
           <div className={`px-4 py-3 flex items-center justify-between ${
             executionResult.success ? 'bg-green-50 border-b border-green-200' :
+            executionResult.isTimeout ? 'bg-orange-50 border-b border-orange-200' :
             executionResult.hasSyntaxErrors ? 'bg-red-50 border-b border-red-200' : 'bg-yellow-50 border-b border-yellow-200'
           }`}>
             <h3 className={`text-lg font-semibold flex items-center space-x-2 ${
               executionResult.success ? 'text-green-800' :
+              executionResult.isTimeout ? 'text-orange-800' :
               executionResult.hasSyntaxErrors ? 'text-red-800' : 'text-yellow-800'
             }`}>
               {executionResult.success ? (
                 <>
                   <span className="text-green-600">✅</span>
                   <span>Execution Successful</span>
+                </>
+              ) : executionResult.isTimeout ? (
+                <>
+                  <span className="text-orange-600">⏰</span>
+                  <span>Execution Timeout</span>
                 </>
               ) : executionResult.hasSyntaxErrors ? (
                 <>
@@ -1076,9 +1466,15 @@ console.log("Solution result:", result);`,
             ) : (
               <div className="space-y-3">
                 <div className="flex items-center space-x-2">
-                  <span className="text-red-600 font-medium">❌ Execution Error</span>
+                  <span className={executionResult.isTimeout ? "text-orange-600 font-medium" : "text-red-600 font-medium"}>
+                    {executionResult.isTimeout ? "⏰ Timeout Error" : "❌ Execution Error"}
+                  </span>
                 </div>
-                <div className="bg-red-50 text-red-800 p-4 rounded-lg border border-red-200">
+                <div className={`p-4 rounded-lg border ${
+                  executionResult.isTimeout
+                    ? "bg-orange-50 text-orange-800 border-orange-200"
+                    : "bg-red-50 text-red-800 border-red-200"
+                }`}>
                   <pre className="whitespace-pre-wrap text-sm">{executionResult.error}</pre>
                 </div>
 

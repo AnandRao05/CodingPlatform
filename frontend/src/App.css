@@ -66,3 +66,39 @@
 .monaco-editor .scrollbar .slider:active {
   background: rgba(255, 255, 255, 0.7);
 }
+
+/* Monaco Editor Syntax Error Highlighting */
+.syntax-error-decoration {
+  background-color: rgba(255, 0, 0, 0.1);
+  border-bottom: 2px solid #ff0000;
+}
+
+.syntax-error-inline {
+  color: #ff0000 !important;
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+.syntax-error-line {
+  background-color: rgba(255, 0, 0, 0.2);
+}
+
+.syntax-error-line-decoration::before {
+  content: "❌";
+  color: #ff0000;
+  font-weight: bold;
+  margin-right: 5px;
+}
+
+/* Monaco Editor Enhancements */
+.monaco-editor .margin {
+  background-color: #f8f9fa;
+}
+
+.monaco-editor .monaco-editor-background {
+  background-color: #1f2937 !important;
+}
+
+.monaco-editor .view-lines .view-line {
+  padding-left: 10px;
+}

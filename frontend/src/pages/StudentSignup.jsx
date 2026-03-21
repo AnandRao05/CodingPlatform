@@ -7,7 +7,8 @@ const StudentSignup = () => {
     name: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    classId: ''
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -37,6 +38,11 @@ const StudentSignup = () => {
       newErrors.password = 'Password is required';
     } else if (formData.password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters long';
+    }
+
+    // Class ID validation
+    if (!formData.classId.trim()) {
+      newErrors.classId = 'Class ID is required';
     }
 
     // Confirm password validation
@@ -75,7 +81,8 @@ const StudentSignup = () => {
         name: formData.name.trim(),
         email: formData.email.toLowerCase(),
         password: formData.password,
-        role: 'student'
+        role: 'student',
+        classId: formData.classId.trim()
       });
 
       if (result.success) {
@@ -145,6 +152,22 @@ const StudentSignup = () => {
           </div>
 
           <div>
+            <label className="block text-sm font-medium mb-1">Class ID</label>
+            <input
+              type="text"
+              name="classId"
+              value={formData.classId}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                errors.classId ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'
+              }`}
+              placeholder="Enter your class ID (e.g., CS101)"
+              required
+            />
+            {errors.classId && <p className="text-red-500 text-sm mt-1">{errors.classId}</p>}
+          </div>
+
+          <div>
             <label className="block text-sm font-medium mb-1">Confirm Password</label>
             <input
               type="password"
@@ -174,7 +197,7 @@ const StudentSignup = () => {
         <div className="mt-6 text-center">
           <p className="text-gray-600">
             Already have an account?{' '}
-            <Link to="/student/login" className="text-blue-500 hover:text-blue-700 font-medium">
+            <Link to="/login" className="text-blue-500 hover:text-blue-700 font-medium">
               Login here
             </Link>
           </p>

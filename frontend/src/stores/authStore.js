@@ -2,6 +2,14 @@ import { create } from 'zustand';
 import axios from 'axios';
 import Cookies from 'js-cookie';
 
+// Use proxy in dev (Vite) or explicit URL from env
+const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  // In dev with Vite proxy: use relative path so requests go through proxy
+  if (import.meta.env.DEV) return '/api';
+  return 'http://localhost:3000/api';
+};
+
 const useAuthStore = create(
     (set, get) => ({
       user: null,
@@ -9,8 +17,8 @@ const useAuthStore = create(
       loading: true,
       isAuthenticated: false,
 
-      // API base URL
-      API_BASE_URL: 'http://localhost:3000/api',
+      // API base URL - resolved at call time for env support
+      get API_BASE_URL() { return getApiBaseUrl(); },
 
       // Set loading state
       setLoading: (loading) => set({ loading }),
@@ -19,22 +27,31 @@ const useAuthStore = create(
       login: async (email, password) => {
         try {
           set({ loading: true });
-          const response = await axios.post(`${get().API_BASE_URL}/auth/login`, {
-            email,
-            password
+          const baseUrl = get().API_BASE_URL;
+          const response = await axios.post(`${baseUrl}/auth/login`, {
+            email: (email || '').trim(),
+            password: password || ''
+          }, {
+            timeout: 15000,
+            headers: { 'Content-Type': 'application/json' }
           });
 
+          const { token, user } = response.data;
+          if (!token || !user) {
+            return { success: false, error: 'Invalid response from server' };
+          }
+
           // Store JWT token in cookie
-          Cookies.set('jwt', response.data.token, {
+          Cookies.set('jwt', token, {
             expires: 7, // 7 days
-            secure: false, // Set to true in production with HTTPS
+            secure: import.meta.env.PROD,
             sameSite: 'strict'
           });
 
           // Store token and user data in state
           set({
-            token: response.data.token,
-            user: response.data.user,
+            token,
+            user,
             isAuthenticated: true,
             loading: false
           });
@@ -42,7 +59,14 @@ const useAuthStore = create(
           return { success: true };
         } catch (error) {
           set({ loading: false });
-          const errorMessage = error.response?.data?.message || error.message || 'Login failed';
+          let errorMessage = 'Unable to sign in. Please try again.';
+          if (error.response?.data?.message) {
+            errorMessage = error.response.data.message;
+          } else if (error.code === 'ECONNABORTED') {
+            errorMessage = 'Request timed out. Please check your connection.';
+          } else if (error.code === 'ERR_NETWORK' || !error.response) {
+            errorMessage = 'Cannot reach server. Please ensure the backend is running.';
+          }
           return { success: false, error: errorMessage };
         }
       },
