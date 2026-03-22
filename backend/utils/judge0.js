@@ -1,10 +1,5 @@
-/**
- * Judge0 API Configuration
- * Supports: Local Judge0 CE Docker | RapidAPI Judge0 CE
- * Note: api.judge0.com is deprecated/unavailable - do not use.
- */
 
-const JUDGE0_API_URL = (process.env.JUDGE0_API_URL || 'http://localhost:2358').trim();
+const JUDGE0_API_URL = (process.env.JUDGE0_API_URL ).trim();
 const JUDGE0_API_KEY = (process.env.JUDGE0_API_KEY || '').trim();
 const JUDGE0_API_HOST = (process.env.JUDGE0_API_HOST || 'judge0-ce.p.rapidapi.com').trim();
 

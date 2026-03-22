@@ -91,7 +91,7 @@ const ForgotPassword = () => {
   return (
     <div className="min-h-screen w-full flex bg-[#0a0a0a] text-slate-200 font-sans selection:bg-indigo-500/30">
       
-      {/* Left Decoration Panel */}
+      {}
       <div className="hidden lg:flex lg:w-1/2 bg-[#111] relative overflow-hidden border-r border-[#222]">
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 via-transparent to-blue-600/10 z-0"></div>
         <div className="relative z-10 flex flex-col items-center justify-center w-full px-20">
@@ -113,7 +113,7 @@ const ForgotPassword = () => {
         </div>
       </div>
 
-      {/* Right Reset Panel */}
+      {}
       <div className="flex-1 flex flex-col items-center justify-center p-8 relative overflow-hidden">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}

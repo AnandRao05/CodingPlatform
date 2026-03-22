@@ -25,7 +25,7 @@ const StudentSignup = () => {
       newErrors.name = 'Name must be at least 2 characters long';
     }
 
-    // Email validation
+    
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email) {
       newErrors.email = 'Email is required';
@@ -33,19 +33,19 @@ const StudentSignup = () => {
       newErrors.email = 'Please enter a valid email address';
     }
 
-    // Password validation
+    
     if (!formData.password) {
       newErrors.password = 'Password is required';
     } else if (formData.password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters long';
     }
 
-    // Class ID validation
+    
     if (!formData.classId.trim()) {
       newErrors.classId = 'Class ID is required';
     }
 
-    // Confirm password validation
+    
     if (!formData.confirmPassword) {
       newErrors.confirmPassword = 'Please confirm your password';
     } else if (formData.password !== formData.confirmPassword) {
@@ -62,7 +62,7 @@ const StudentSignup = () => {
       ...prev,
       [name]: value
     }));
-    // Clear error when user starts typing
+    
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,

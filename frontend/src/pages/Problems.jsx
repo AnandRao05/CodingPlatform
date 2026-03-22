@@ -13,7 +13,7 @@ const Problems = () => {
   const [customTestCases, setCustomTestCases] = useState([]);
 
   const problems = [
-    // Array Problems
+    
     {
       title: 'Two Sum',
       description: 'Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.',
@@ -53,7 +53,7 @@ const Problems = () => {
       pattern: 'Array'
     },
 
-    // String Problems
+    
     {
       title: 'Valid Palindrome',
       description: 'Given a string s, determine if it is a palindrome, considering only alphanumeric characters and ignoring cases.',
@@ -84,7 +84,7 @@ const Problems = () => {
       pattern: 'String'
     },
 
-    // Linked List Problems
+    
     {
       title: 'Merge Two Sorted Lists',
       description: 'Merge two sorted linked lists and return it as a sorted list.',
@@ -113,7 +113,7 @@ const Problems = () => {
       pattern: 'Linked List'
     },
 
-    // Tree Problems
+    
     {
       title: 'Binary Tree Inorder Traversal',
       description: 'Given the root of a binary tree, return the inorder traversal of its nodes\' values.',
@@ -143,7 +143,7 @@ const Problems = () => {
       pattern: 'Tree'
     },
 
-    // Dynamic Programming
+    
     {
       title: 'Climbing Stairs',
       description: 'You are climbing a staircase. It takes n steps to reach the top. Each time you can either climb 1 or 2 steps. In how many distinct ways can you climb to the top?',
@@ -174,7 +174,7 @@ const Problems = () => {
       pattern: 'Dynamic Programming'
     },
 
-    // Graph Problems
+    
     {
       title: 'Number of Islands',
       description: 'Given an m x n 2D binary grid grid which represents a map of \'1\'s (land) and \'0\'s (water), return the number of islands.',
@@ -195,7 +195,7 @@ const Problems = () => {
       pattern: 'Graph'
     },
 
-    // Backtracking
+    
     {
       title: 'Permutations',
       description: 'Given an array nums of distinct integers, return all the possible permutations.',
@@ -215,7 +215,7 @@ const Problems = () => {
       pattern: 'Backtracking'
     },
 
-    // Greedy
+    
     {
       title: 'Jump Game',
       description: 'Given an array of non-negative integers nums, you are initially positioned at the first index of the array. Each element in the array represents your maximum jump length at that position. Determine if you are able to reach the last index.',
@@ -236,7 +236,7 @@ const Problems = () => {
       pattern: 'Greedy'
     },
 
-    // Bit Manipulation
+    
     {
       title: 'Single Number',
       description: 'Given a non-empty array of integers nums, every element appears twice except for one. Find that single one.',
@@ -269,7 +269,7 @@ const Problems = () => {
   useEffect(() => {
     const examples = problems[selectedProblem].examples;
     const defaultTC = examples.map(ex => ({ input: ex.input, expected: ex.output }));
-    // Add more if less than 3
+    
     while (defaultTC.length < 3) {
       defaultTC.push({ input: '', expected: '' });
     }
@@ -310,7 +310,7 @@ const Problems = () => {
   };
 
   const handleSubmit = () => {
-    // mock submit
+    
     setOutput('Submitting...\nAccepted');
   };
 
@@ -429,7 +429,7 @@ const Problems = () => {
                   <div key={idx} className="border rounded-lg p-4 bg-white">
                     <div className="flex justify-between items-center mb-2">
                       <h5 className="font-semibold">Test Case {idx + 1}</h5>
-                      <button onClick={() => {/* run single test */}} className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm">Run</button>
+                      <button onClick={() => {}} className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm">Run</button>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>

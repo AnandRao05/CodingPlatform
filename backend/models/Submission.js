@@ -4,7 +4,7 @@ const submissionSchema = new mongoose.Schema({
   assignmentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Assignment',
-    required: true
+    required: false
   },
   problemId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -39,8 +39,8 @@ const submissionSchema = new mongoose.Schema({
     passed: Boolean,
     isHidden: Boolean,
     errorType: String,
-    executionTime: Number, // in milliseconds
-    memoryUsed: Number // in MB
+    executionTime: Number, 
+    memoryUsed: Number 
   }],
   score: {
     type: Number,
@@ -61,6 +61,26 @@ const submissionSchema = new mongoose.Schema({
     bugs: String,
     bestPractices: String
   },
+  passedTestCases: {
+    type: Number,
+    default: 0
+  },
+  totalTestCases: {
+    type: Number,
+    default: 0
+  },
+  errorMessage: {
+    type: String,
+    default: ''
+  },
+  executionTime: {
+    type: Number,
+    default: 0
+  },
+  memoryUsed: {
+    type: Number,
+    default: 0
+  },
   gradedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
@@ -77,16 +97,20 @@ const submissionSchema = new mongoose.Schema({
   isDraft: {
     type: Boolean,
     default: false
+  },
+  isPractice: {
+    type: Boolean,
+    default: false
   }
 });
 
-// Update the updatedAt field before saving
+
 submissionSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();
 });
 
-// Index for better query performance
+
 submissionSchema.index({ assignmentId: 1, studentId: 1, problemId: 1 });
 submissionSchema.index({ studentId: 1, submittedAt: -1 });
 submissionSchema.index({ status: 1, submittedAt: -1 });

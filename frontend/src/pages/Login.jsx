@@ -52,11 +52,11 @@ const Login = () => {
   return (
     <div className="min-h-screen w-full flex bg-[#0a0a0a] text-slate-200 font-sans selection:bg-indigo-500/30">
       
-      {/* Left Decoration Panel - Only on desktop */}
+      {}
       <div className="hidden lg:flex lg:w-1/2 bg-[#111] relative overflow-hidden border-r border-[#222]">
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 via-transparent to-blue-600/10 z-0"></div>
         
-        {/* Animated Background Elements */}
+        {}
         <div className="absolute top-20 left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-[100px] animate-pulse"></div>
         <div className="absolute bottom-20 right-20 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px] animate-pulse delay-700"></div>
         
@@ -91,9 +91,9 @@ const Login = () => {
         </div>
       </div>
 
-      {/* Right Login Panel */}
+      {}
       <div className="flex-1 flex flex-col items-center justify-center p-8 relative overflow-hidden">
-        {/* Ambient mobile lights */}
+        {}
         <div className="lg:hidden absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
            <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[40%] bg-indigo-600/10 blur-[100px] rounded-full"></div>
            <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[40%] bg-blue-600/10 blur-[100px] rounded-full"></div>

@@ -1,6 +1,6 @@
 import useAuthStore from './stores/authStore';
 
-// Initialize auth store on app load
+
 useAuthStore.getState().checkAuth();
 
 import { StrictMode } from 'react'

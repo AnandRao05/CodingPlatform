@@ -149,7 +149,7 @@ const CodeEditor = ({ onSubmit, isSubmitting, problem }) => {
   };
   return (
     <div className="h-full flex flex-col bg-gray-900 text-white">
-      {/* Header */}
+      {}
       <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
         <h2 className="text-xl font-semibold">Code Editor</h2>
         <div className="flex items-center space-x-4">
@@ -203,9 +203,9 @@ const CodeEditor = ({ onSubmit, isSubmitting, problem }) => {
         </div>
       </div>
 
-      {/* Editor and I/O */}
+      {}
       <div ref={containerRef} className="flex-1 flex">
-        {/* Code Editor */}
+        {}
         <div className="flex-1 flex flex-col min-w-0">
           <div className="p-2 bg-gray-800 text-sm text-gray-300 border-b border-gray-700">
             Code
@@ -242,19 +242,19 @@ const CodeEditor = ({ onSubmit, isSubmitting, problem }) => {
           </div>
         </div>
 
-        {/* Resizer */}
+        {}
         <div
           className="w-2 bg-gray-600 hover:bg-gray-500 active:bg-gray-400 cursor-col-resize transition-colors select-none"
           onMouseDown={handleMouseDown}
           style={{ userSelect: 'none' }}
         />
 
-        {/* Input/Output Panel */}
+        {}
         <div
           className="flex flex-col border-l border-gray-700"
           style={{ width: `${panelWidth}px` }}
         >
-          {/* Run Result Status */}
+          {}
           {runResult && (
             <div className={`p-3 border-b border-gray-700 ${
               runResult.type === 'success' ? 'bg-green-900/20' : 'bg-red-900/20'
@@ -272,7 +272,7 @@ const CodeEditor = ({ onSubmit, isSubmitting, problem }) => {
             </div>
           )}
 
-          {/* Input */}
+          {}
           <div className="flex-1 flex flex-col">
             <div className="p-2 bg-gray-800 text-sm text-gray-300 border-b border-gray-700">
               Custom Input
@@ -285,7 +285,7 @@ const CodeEditor = ({ onSubmit, isSubmitting, problem }) => {
             />
           </div>
 
-          {/* Output */}
+          {}
           <div className="flex-1 flex flex-col border-t border-gray-700">
             <div className="p-2 bg-gray-800 text-sm text-gray-300 border-b border-gray-700">
               Output

@@ -1,22 +1,7 @@
-/**
- * Judge0 Execution Result Parser
- * Maps Judge0 API response to structured LeetCode/Codeforces-style output.
- * No special imports required in student code - server-side only.
- *
- * Judge0 Status IDs:
- * 1: In Queue, 2: Processing
- * 3: Accepted, 4: Wrong Answer, 5: Time Limit Exceeded
- * 6: Compilation Error
- * 7-12: Runtime Errors (SIGSEGV, SIGXFSZ, SIGFPE, SIGABRT, NZEC, Other)
- */
 
 const COMPILATION_STATUS_ID = 6;
 const RUNTIME_STATUS_IDS = [7, 8, 9, 10, 11, 12];
 
-/**
- * Extract the actual error message from Judge0 response.
- * Priority: compile_output (compiler errors) > stderr (runtime) > message
- */
 function extractErrorMessage(result) {
   const parts = [];
   if (result.compile_output && result.compile_output.trim()) {
@@ -31,9 +16,6 @@ function extractErrorMessage(result) {
   return parts.join('\n\n').trim() || 'An error occurred during execution';
 }
 
-/**
- * Determine error type from Judge0 status and output content
- */
 function getErrorType(result) {
   const statusId = result.status?.id;
 
@@ -44,7 +26,7 @@ function getErrorType(result) {
     return 'Runtime Error';
   }
 
-  // Fallback: infer from output content when status is ambiguous
+  
   const stderr = (result.stderr || '').toLowerCase();
   const compileOut = (result.compile_output || '').toLowerCase();
   const combined = `${stderr} ${compileOut}`;
@@ -62,9 +44,6 @@ function getErrorType(result) {
   return 'Runtime Error';
 }
 
-/**
- * Check if Judge0 result indicates an error state (compilation or runtime failure)
- */
 function isErrorResult(result) {
   if (!result || !result.status) return true;
   const id = result.status.id;
@@ -80,10 +59,6 @@ const decodeBase64 = (str) => {
   }
 };
 
-/**
- * Parse Judge0 API response into structured execution result
- * @returns { success, type?, message?, output, stdout, stderr, compile_output, time, memory, status }
- */
 function parseJudge0Result(rawResult) {
   const result = {
     ...rawResult,

@@ -4,7 +4,7 @@ async function test() {
   const url = 'http://localhost:2358/submissions';
   const data = {
     source_code: 'print("Hello World" // syntax error',
-    language_id: 71, // python
+    language_id: 71, 
     stdin: ''
   };
   const config = {

@@ -41,13 +41,13 @@ const problemSchema = new mongoose.Schema({
   }],
   timeLimit: {
     type: Number,
-    default: 1000, // milliseconds
+    default: 1000, 
     min: 100,
     max: 10000
   },
   memoryLimit: {
     type: Number,
-    default: 256, // MB
+    default: 256, 
     min: 16,
     max: 1024
   },
@@ -90,13 +90,13 @@ const problemSchema = new mongoose.Schema({
   }
 });
 
-// Update the updatedAt field before saving
+
 problemSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();
 });
 
-// Index for better query performance
+
 problemSchema.index({ title: 'text', description: 'text', tags: 'text' });
 problemSchema.index({ difficulty: 1, category: 1 });
 problemSchema.index({ isActive: 1, createdAt: -1 });

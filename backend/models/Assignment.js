@@ -63,7 +63,7 @@ assignmentSchema.pre('save', function(next) {
   next();
 });
 
-// Index for better query performance
+
 assignmentSchema.index({ teacherId: 1, createdAt: -1 });
 assignmentSchema.index({ classId: 1, dueDate: -1 });
 assignmentSchema.index({ isActive: 1 });

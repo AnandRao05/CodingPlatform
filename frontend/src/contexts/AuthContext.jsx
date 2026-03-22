@@ -10,11 +10,11 @@ export const AuthProvider = ({ children }) => {
 
   const API_BASE_URL = 'http://localhost:3000/api';
 
-  // Check for existing token on app load
+  
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      // Validate token and get user info
+      
       fetch(`${API_BASE_URL}/auth/profile`, {
         headers: {
           'Authorization': `Bearer ${token}`

@@ -8,7 +8,7 @@ const { auth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Get all users (admin only)
+
 router.get('/', auth, requireRole(['admin']), async (req, res) => {
   try {
     const { page = 1, limit = 10, role, search, isActive } = req.query;
@@ -44,7 +44,7 @@ router.get('/', auth, requireRole(['admin']), async (req, res) => {
   }
 });
 
-// Get user statistics (admin only)
+
 router.get('/stats', auth, requireRole(['admin']), async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
@@ -78,7 +78,7 @@ router.get('/stats', auth, requireRole(['admin']), async (req, res) => {
   }
 });
 
-// Get single user by ID (admin only)
+
 router.get('/:id', auth, requireRole(['admin']), async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select('-password');
@@ -94,7 +94,7 @@ router.get('/:id', auth, requireRole(['admin']), async (req, res) => {
   }
 });
 
-// Create new user (admin only)
+
 router.post('/', auth, requireRole(['admin']), async (req, res) => {
   try {
     const {
@@ -107,7 +107,7 @@ router.post('/', auth, requireRole(['admin']), async (req, res) => {
       isActive = true
     } = req.body;
 
-    // Validate required fields
+    
     if (!name || !email || !password || !role) {
       return res.status(400).json({
         message: 'Name, email, password, and role are required'
@@ -120,14 +120,14 @@ router.post('/', auth, requireRole(['admin']), async (req, res) => {
       });
     }
 
-    // Validate role
+    
     if (!['student', 'teacher', 'admin'].includes(role)) {
       return res.status(400).json({
         message: 'Role must be student, teacher, or admin'
       });
     }
 
-    // Check if user already exists
+    
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
       return res.status(400).json({ message: 'User with this email already exists' });
@@ -145,7 +145,7 @@ router.post('/', auth, requireRole(['admin']), async (req, res) => {
 
     await user.save();
 
-    // Return user without password
+    
     const userResponse = user.toObject();
     delete userResponse.password;
 
@@ -159,7 +159,7 @@ router.post('/', auth, requireRole(['admin']), async (req, res) => {
   }
 });
 
-// Update user (admin only)
+
 router.put('/:id', auth, requireRole(['admin']), async (req, res) => {
   try {
     const {
@@ -177,7 +177,7 @@ router.put('/:id', auth, requireRole(['admin']), async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Check if email is being changed and if it's already taken
+    
     if (email && email.toLowerCase() !== user.email) {
       const existingUser = await User.findOne({ email: email.toLowerCase() });
       if (existingUser) {
@@ -186,7 +186,7 @@ router.put('/:id', auth, requireRole(['admin']), async (req, res) => {
       user.email = email.toLowerCase();
     }
 
-    // Update fields
+    
     if (name !== undefined) user.name = name;
     if (role !== undefined) {
       if (!['student', 'teacher', 'admin'].includes(role)) {
@@ -202,7 +202,7 @@ router.put('/:id', auth, requireRole(['admin']), async (req, res) => {
 
     await user.save();
 
-    // Return user without password
+    
     const userResponse = user.toObject();
     delete userResponse.password;
 
@@ -216,7 +216,7 @@ router.put('/:id', auth, requireRole(['admin']), async (req, res) => {
   }
 });
 
-// Update user status (activate/deactivate) (admin only)
+
 router.put('/:id/status', auth, requireRole(['admin']), async (req, res) => {
   try {
     const { isActive } = req.body;
@@ -231,7 +231,7 @@ router.put('/:id/status', auth, requireRole(['admin']), async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Prevent admin from deactivating themselves
+    
     if (user._id.toString() === req.user._id.toString() && !isActive) {
       return res.status(400).json({ message: 'Cannot deactivate your own account' });
     }
@@ -255,7 +255,7 @@ router.put('/:id/status', auth, requireRole(['admin']), async (req, res) => {
   }
 });
 
-// Delete user (admin only)
+
 router.delete('/:id', auth, requireRole(['admin']), async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -264,7 +264,7 @@ router.delete('/:id', auth, requireRole(['admin']), async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Prevent admin from deleting themselves
+    
     if (user._id.toString() === req.user._id.toString()) {
       return res.status(400).json({ message: 'Cannot delete your own account' });
     }
@@ -278,28 +278,28 @@ router.delete('/:id', auth, requireRole(['admin']), async (req, res) => {
   }
 });
 
-// Get student statistics (for student dashboard)
+
 router.get('/student/stats', auth, requireRole(['student']), async (req, res) => {
   try {
     const studentId = req.user._id;
 
-    // Get all submissions for this student that are marked as solved (accepted status)
+    
     const submissions = await Submission.find({
       studentId,
       status: 'accepted'
     }).select('submittedAt problemId').sort({ submittedAt: -1 });
 
-    // Calculate problems solved (unique problems with accepted submissions)
+    
     const solvedProblemIds = [...new Set(submissions.map(sub => sub.problemId.toString()))];
     const problemsSolved = solvedProblemIds.length;
 
-    // Calculate current streak - consecutive days up to today where at least one problem was solved
+    
     let currentStreak = 0;
     if (submissions.length > 0) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      // Group submissions by date
+      
       const submissionsByDate = {};
       submissions.forEach(submission => {
         const date = new Date(submission.submittedAt);
@@ -312,7 +312,7 @@ router.get('/student/stats', auth, requireRole(['student']), async (req, res) =>
         submissionsByDate[dateKey].push(submission);
       });
 
-      // Check consecutive days from today backwards
+      
       let checkDate = new Date(today);
       let streakBroken = false;
 
@@ -321,21 +321,21 @@ router.get('/student/stats', auth, requireRole(['student']), async (req, res) =>
         const daySubmissions = submissionsByDate[dateKey];
 
         if (daySubmissions && daySubmissions.length > 0) {
-          // Found at least one solved problem on this day
+          
           currentStreak++;
           checkDate.setDate(checkDate.getDate() - 1);
         } else {
-          // No submissions on this day, check if it's today or yesterday
+          
           if (checkDate.getTime() === today.getTime()) {
-            // Today has no submissions, streak is 0
+            
             streakBroken = true;
           } else {
-            // Yesterday or earlier has no submissions, streak ends
+            
             streakBroken = true;
           }
         }
 
-        // Prevent infinite loop by limiting to reasonable streak length
+        
         if (currentStreak > 365) break;
       }
     }
@@ -351,18 +351,18 @@ router.get('/student/stats', auth, requireRole(['student']), async (req, res) =>
   }
 });
 
-// Get student progress statistics (for progress tab)
+
 router.get('/student/progress', auth, requireRole(['student']), async (req, res) => {
   try {
     const studentId = req.user._id;
 
-    // Get all submissions for this student
+    
     const submissions = await Submission.find({
       studentId,
       status: 'accepted'
     }).populate('problemId', 'title difficulty category tags').sort({ submittedAt: -1 });
 
-    // Get assignment submissions
+    
     const assignmentSubmissions = await Submission.find({
       studentId,
       status: 'accepted'
@@ -371,38 +371,38 @@ router.get('/student/progress', auth, requireRole(['student']), async (req, res)
       select: 'title'
     }).populate('problemId', 'title difficulty category tags');
 
-    // Calculate progress by difficulty
+    
     const difficultyProgress = {
       easy: { solved: 0, total: 0 },
       medium: { solved: 0, total: 0 },
       hard: { solved: 0, total: 0 }
     };
 
-    // Calculate progress by category
+    
     const categoryProgress = {};
 
-    // Calculate assignment vs standalone progress
+    
     const progressType = {
       assignment: { solved: 0, total: 0 },
       standalone: { solved: 0, total: 0 }
     };
 
-    // Track solved problems by ID to avoid duplicates
+    
     const solvedProblemIds = new Set();
     const assignmentSolvedIds = new Set();
 
-    // Process all submissions
+    
     submissions.forEach(submission => {
       if (submission.problemId && !solvedProblemIds.has(submission.problemId._id.toString())) {
         solvedProblemIds.add(submission.problemId._id.toString());
 
-        // Count by difficulty
+        
         const difficulty = submission.problemId.difficulty || 'medium';
         if (difficultyProgress[difficulty]) {
           difficultyProgress[difficulty].solved++;
         }
 
-        // Count by category
+        
         const category = submission.problemId.category || 'General';
         if (!categoryProgress[category]) {
           categoryProgress[category] = { solved: 0, total: 0 };
@@ -411,7 +411,7 @@ router.get('/student/progress', auth, requireRole(['student']), async (req, res)
       }
     });
 
-    // Process assignment submissions
+    
     assignmentSubmissions.forEach(submission => {
       if (submission.problemId && !assignmentSolvedIds.has(submission.problemId._id.toString())) {
         assignmentSolvedIds.add(submission.problemId._id.toString());
@@ -424,18 +424,18 @@ router.get('/student/progress', auth, requireRole(['student']), async (req, res)
       }
     });
 
-    // Get total problems count by difficulty and category (simplified - in real app you'd query Problem model)
-    // For now, we'll use the solved counts and add some estimated totals
+    
+    
     difficultyProgress.easy.total = Math.max(difficultyProgress.easy.solved + 10, 15);
     difficultyProgress.medium.total = Math.max(difficultyProgress.medium.solved + 15, 25);
     difficultyProgress.hard.total = Math.max(difficultyProgress.hard.solved + 5, 10);
 
-    // For categories, we'll show solved count and mark as "tracked"
+    
     Object.keys(categoryProgress).forEach(category => {
-      categoryProgress[category].total = categoryProgress[category].solved; // Simplified
+      categoryProgress[category].total = categoryProgress[category].solved; 
     });
 
-    // Get assignment progress
+    
     const assignments = await mongoose.model('Assignment').find({ isActive: true })
       .populate('problems.problemId', 'title difficulty category');
 
@@ -443,11 +443,11 @@ router.get('/student/progress', auth, requireRole(['student']), async (req, res)
       progressType.assignment.total += assignment.problems?.length || 0;
     });
 
-    // Get standalone problems count
+    
     const totalProblems = await Problem.countDocuments({ isActive: true });
     progressType.standalone.total = totalProblems - progressType.assignment.total;
 
-    // Calculate recent activity (last 30 days)
+    
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -463,7 +463,7 @@ router.get('/student/progress', auth, requireRole(['student']), async (req, res)
       solvedAt: sub.submittedAt
     }));
 
-    // Calculate overall progress percentage
+    
     const totalProblemsAvailable = await Problem.countDocuments({ isActive: true });
     const problemsSolved = solvedProblemIds.size;
     const overallProgress = totalProblemsAvailable > 0 ? Math.round((problemsSolved / totalProblemsAvailable) * 100) : 0;
@@ -484,12 +484,12 @@ router.get('/student/progress', auth, requireRole(['student']), async (req, res)
   }
 });
 
-// Get teacher overview statistics
+
 router.get('/teacher/overview', auth, requireRole(['teacher']), async (req, res) => {
   try {
     const teacherId = req.user._id;
 
-    // Get total students count (students who have submitted to teacher's assignments)
+    
     const assignments = await mongoose.model('Assignment').find({ teacherId, isActive: true }).select('_id');
     const assignmentIds = assignments.map(a => a._id);
 
@@ -499,14 +499,14 @@ router.get('/teacher/overview', auth, requireRole(['teacher']), async (req, res)
 
     const totalStudents = uniqueStudents.length;
 
-    // Get problems created by teacher (from "My Problems" section)
+    
     const problemsCreated = await Problem.countDocuments({ createdBy: teacherId });
 
-    // Get active assignments count (from "Assignments" section - active assignments)
+    
     const activeAssignments = await mongoose.model('Assignment').countDocuments({
       teacherId,
       isActive: true,
-      dueDate: { $gte: new Date() } // Due date is in the future
+      dueDate: { $gte: new Date() } 
     });
 
     res.json({
@@ -520,19 +520,19 @@ router.get('/teacher/overview', auth, requireRole(['teacher']), async (req, res)
   }
 });
 
-// Get admin overview statistics
+
 router.get('/admin/overview', auth, requireRole(['admin']), async (req, res) => {
   try {
-    // Get total users count
+    
     const totalUsers = await User.countDocuments();
 
-    // Get active users count
+    
     const activeUsers = await User.countDocuments({ isActive: true });
 
-    // Get total problems count
+    
     const totalProblems = await Problem.countDocuments({ isActive: true });
 
-    // Get total assignments count
+    
     const totalAssignments = await mongoose.model('Assignment').countDocuments({ isActive: true });
 
     res.json({

@@ -4,23 +4,23 @@ const { auth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Get all problems (for students and teachers)
+
 router.get('/', auth, async (req, res) => {
   try {
     const { difficulty, category, search, page = 1, limit = 10 } = req.query;
 
     let query = { isActive: true };
 
-    // Filter problems correctly based on role
+    
     const User = require('../models/User');
     const adminUsers = await User.find({ role: 'admin' }).select('_id');
     const adminIds = adminUsers.map(user => user._id);
 
     if (req.user.role === 'admin' || req.user.role === 'student') {
-      // Admins and students only see admin-created problems in the global pool
+      
       query.createdBy = { $in: adminIds };
     } else if (req.user.role === 'teacher') {
-      // Teachers see Admin problems + their own problems in the global pool (like assignment picker)
+      
       query.createdBy = { $in: [...adminIds, req.user._id] };
     }
 
@@ -31,7 +31,7 @@ router.get('/', auth, async (req, res) => {
     }
 
     const problems = await Problem.find(query)
-      .select('-testCases -solution') // Don't send test cases and solutions to clients
+      .select('-testCases -solution') 
       .populate('createdBy', 'name')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
@@ -51,11 +51,11 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// Get single problem by ID
+
 router.get('/:id', auth, async (req, res) => {
   try {
     const problem = await Problem.findById(req.params.id)
-      .select('-solution') // Don't send solution to clients
+      .select('-solution') 
       .populate('createdBy', 'name');
 
     if (!problem) {
@@ -73,7 +73,7 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// Create new problem (admin and teacher)
+
 router.post('/', auth, requireRole(['admin', 'teacher']), async (req, res) => {
   try {
     const {
@@ -92,14 +92,14 @@ router.post('/', auth, requireRole(['admin', 'teacher']), async (req, res) => {
       solution
     } = req.body;
 
-    // Validate required fields
+    
     if (!title || !description || !difficulty || !category || !testCases || testCases.length === 0) {
       return res.status(400).json({
         message: 'Title, description, difficulty, category, and at least one test case are required'
       });
     }
 
-    // Validate test cases
+    
     for (const testCase of testCases) {
       if (!testCase.input || !testCase.expectedOutput) {
         return res.status(400).json({
@@ -138,7 +138,7 @@ router.post('/', auth, requireRole(['admin', 'teacher']), async (req, res) => {
 });
 
 
-// Get problems created by teacher
+
 router.get('/teacher/my-problems', auth, requireRole(['teacher']), async (req, res) => {
   try {
     const { page = 1, limit = 10, difficulty, category, search } = req.query;
@@ -152,7 +152,7 @@ router.get('/teacher/my-problems', auth, requireRole(['teacher']), async (req, r
     }
 
     const problems = await Problem.find(query)
-      .select('-testCases -solution') // Don't send test cases and solutions to clients
+      .select('-testCases -solution') 
       .populate('createdBy', 'name')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
@@ -172,7 +172,7 @@ router.get('/teacher/my-problems', auth, requireRole(['teacher']), async (req, r
   }
 });
 
-// Update problem (admin and teacher - teacher can only update their own problems)
+
 router.put('/:id', auth, requireRole(['admin', 'teacher']), async (req, res) => {
   try {
     const {
@@ -198,13 +198,13 @@ router.put('/:id', auth, requireRole(['admin', 'teacher']), async (req, res) => 
       return res.status(404).json({ message: 'Problem not found' });
     }
 
-    // Check if teacher owns this problem
+    
     const createdById = problem.createdBy._id ? problem.createdBy._id.toString() : problem.createdBy.toString();
     if (req.user.role === 'teacher' && createdById !== req.user._id.toString()) {
       return res.status(403).json({ message: 'You can only edit your own problems' });
     }
 
-    // Update fields
+    
     if (title) problem.title = title;
     if (description) problem.description = description;
     if (difficulty) problem.difficulty = difficulty;
@@ -232,7 +232,7 @@ router.put('/:id', auth, requireRole(['admin', 'teacher']), async (req, res) => 
   }
 });
 
-// Delete problem (admin and teacher - teacher can only delete their own problems)
+
 router.delete('/:id', auth, requireRole(['admin', 'teacher']), async (req, res) => {
   try {
     const problem = await Problem.findById(req.params.id);
@@ -241,7 +241,7 @@ router.delete('/:id', auth, requireRole(['admin', 'teacher']), async (req, res) 
       return res.status(404).json({ message: 'Problem not found' });
     }
 
-    // Check if teacher owns this problem
+    
     const createdById = problem.createdBy._id ? problem.createdBy._id.toString() : problem.createdBy.toString();
     if (req.user.role === 'teacher' && createdById !== req.user._id.toString()) {
       return res.status(403).json({ message: 'You can only delete your own problems' });
@@ -256,7 +256,7 @@ router.delete('/:id', auth, requireRole(['admin', 'teacher']), async (req, res) 
   }
 });
 
-// Get problem with test cases (admin and teacher - teacher can only view their own problems)
+
 router.get('/:id/admin', auth, requireRole(['admin', 'teacher']), async (req, res) => {
   try {
     const problem = await Problem.findById(req.params.id)
@@ -266,7 +266,7 @@ router.get('/:id/admin', auth, requireRole(['admin', 'teacher']), async (req, re
       return res.status(404).json({ message: 'Problem not found' });
     }
 
-    // Check if teacher owns this problem
+    
     const createdById = problem.createdBy._id ? problem.createdBy._id.toString() : problem.createdBy.toString();
     if (req.user.role === 'teacher' && createdById !== req.user._id.toString()) {
       return res.status(403).json({ message: 'You can only view your own problems' });

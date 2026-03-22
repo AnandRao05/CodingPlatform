@@ -8,7 +8,7 @@ import {
 const LandingPage = () => {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 selection:bg-indigo-500/30 font-sans selection:text-white">
-      {/* Navigation */}
+      {}
       <nav className="fixed top-0 w-full z-50 bg-slate-950/80 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3 group cursor-default">
@@ -24,9 +24,9 @@ const LandingPage = () => {
         </div>
       </nav>
 
-      {/* Hero Section */}
+      {}
       <main className="relative pt-32 pb-20 overflow-hidden">
-        {/* Abstract Background Elements */}
+        {}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full -z-10 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent"></div>
         <div className="absolute top-1/4 -left-20 w-96 h-96 bg-indigo-500/20 blur-[120px] rounded-full -z-10"></div>
         <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-cyan-500/10 blur-[100px] rounded-full -z-10"></div>
@@ -76,7 +76,7 @@ const LandingPage = () => {
         </div>
       </main>
 
-      {/* Features Grid */}
+      {}
       <section id="features" className="py-32 bg-slate-950 relative">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-20">
@@ -121,7 +121,7 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Trusted Footer */}
+      {}
       <footer className="py-20 border-t border-white/5 bg-black">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-10">

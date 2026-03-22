@@ -1,6 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
-import { Play, Send, ChevronLeft, Terminal, CheckCircle, XCircle, Clock, Check, ChevronUp, ChevronDown, Maximize2, Minimize2, BookOpen, Code2, AlertCircle, Info, RefreshCw, Activity, X, Cpu, Zap } from 'lucide-react';
+import { 
+  Play, Send, ChevronLeft, Terminal, CheckCircle, XCircle, Clock, Check, 
+  ChevronUp, ChevronDown, Maximize2, Minimize2, BookOpen, Code2, 
+  AlertCircle, Info, RefreshCw, Activity, X, Cpu, Zap, Layout,
+  Layers, Eye, Edit3, TrendingUp, Bug, ShieldCheck
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAuthStore from '../stores/authStore';
 
@@ -8,12 +13,12 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
   const { getAuthHeaders, API_BASE_URL } = useAuthStore();
   const [code, setCode] = useState('');
   const [language, setLanguage] = useState('javascript');
-  const [leftTab, setLeftTab] = useState('description'); // description, submissions
+  const [leftTab, setLeftTab] = useState('description'); 
   const [consoleOpen, setConsoleOpen] = useState(false);
-  const [consoleTab, setConsoleTab] = useState('testcases'); // testcases, result
-  const [isMaximized, setIsMaximized] = useState(false); // Controls if right panel is fullscreen
+  const [consoleTab, setConsoleTab] = useState('testcases'); 
+  const [isMaximized, setIsMaximized] = useState(false); 
   const [leftWidth, setLeftWidth] = useState(50);
-  const [consoleHeight, setConsoleHeight] = useState(35); // Initial percentage for console
+  const [consoleHeight, setConsoleHeight] = useState(35); 
   const [isDragging, setIsDragging] = useState(false);
   const [isDraggingHeight, setIsDraggingHeight] = useState(false);
   const [fontSize, setFontSize] = useState(15);
@@ -28,18 +33,19 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
   const [submissionHistory, setSubmissionHistory] = useState(null);
   const [allSubmissions, setAllSubmissions] = useState([]);
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
-  const [expandedSubmissions, setExpandedSubmissions] = useState({});
+  const [expandedSubId, setExpandedSubId] = useState(null); 
   const editorRef = useRef(null);
-
-  const toggleSubmissionCode = (id) => {
-    setExpandedSubmissions(prev => ({ ...prev, [id]: !prev[id] }));
-  };
+  const executionId = useRef(0);
 
   const fetchSubmissions = async () => {
-    if (!assignment || !problem) return;
+    if (!problem) return;
     setIsLoadingSubmissions(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/assignments/${assignment.assignment._id}/problems/${problem._id}/submissions`, {
+      const endpoint = assignment 
+        ? `${API_BASE_URL}/assignments/${assignment.assignment._id}/problems/${problem._id}/submissions`
+        : `${API_BASE_URL}/code/practice/${problem._id}/submissions`;
+        
+      const res = await fetch(endpoint, {
         headers: getAuthHeaders()
       });
       if (res.ok) {
@@ -174,39 +180,61 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
     }
   };
 
-  const handleAnalysis = async () => {
-    if (!submissionHistory || !submissionHistory._id) return;
-    
-    setIsAnalyzing(true);
+  const handleAnalysis = async (subId = null) => {
     setConsoleOpen(true);
     setConsoleTab('result');
-    setExecutionResult({ status: 'AI Analyzing...', type: 'loading', isAnalysis: true });
+    setIsAnalyzing(true);
+    setAiAnalysisResult(null); 
+    setExecutionResult({ 
+      isAnalysis: true, 
+      status: 'Analyzing...', 
+      message: 'Gemini AI is examining your code for complexity, logic, and potential enhancements.' 
+    });
     
     try {
-      const res = await fetch(`${API_BASE_URL}/submissions/${submissionHistory._id}/analyze-ai`, {
-        method: 'POST',
-        headers: getAuthHeaders()
-      });
+      let endpoint;
+      let body = null;
       
-      const data = await res.json();
       
-      if (!res.ok) {
-        throw new Error(data.message || 'Analysis failed');
+      
+      if (subId) {
+        endpoint = `${API_BASE_URL}/submissions/${subId}/analyze-ai`;
+      } else {
+        endpoint = `${API_BASE_URL}/code/analyze-draft`;
+        body = JSON.stringify({ code, language });
       }
-      
-      setAiAnalysisResult(data.aiAnalysis);
-      setExecutionResult({ 
-        status: 'Analysis Complete', 
-        type: 'success', 
-        isAnalysis: true 
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
+        ...(body && { body })
       });
-    } catch (e) {
-      console.error('AI Analysis error:', e);
-      setExecutionResult({ 
-        status: 'Analysis Failed', 
-        body: e.message, 
-        type: 'error',
-        isAnalysis: true
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Analysis failed');
+      
+      const finalAnalysis = data.aiAnalysis || data;
+      
+      if (!finalAnalysis || !finalAnalysis.timeComplexity) {
+        throw new Error('AI returned an invalid analysis structure.');
+      }
+
+      setAiAnalysisResult(finalAnalysis);
+      setExecutionResult({
+        isAnalysis: true,
+        status: 'Analysis Complete',
+        success: true
+      });
+    } catch (error) {
+      console.error('Frontend Analysis Error:', error);
+      setExecutionResult({
+        isAnalysis: true,
+        status: 'Analysis Failed',
+        success: false,
+        message: error.message || 'Could not complete AI analysis. Please try again later.'
       });
     } finally {
       setIsAnalyzing(false);
@@ -215,10 +243,17 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
 
   const handleRun = async () => {
     if (!code.trim() || testCases.length === 0) return;
+    
+    
+    const currentExecutionId = ++executionId.current;
+    
     setIsRunning(true);
     setConsoleOpen(true);
     setConsoleTab('result');
     setExecutionResult({ status: 'Evaluating...', type: 'loading' });
+    
+    
+    setTestCases(prev => prev.map(tc => ({ ...tc, actualOutput: '', passed: null, error: false })));
 
     // Explicitly save draft on run
     if (assignment && problem) {
@@ -230,54 +265,61 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
     }
 
     try {
-      let passedCount = 0;
-      const updatedCases = [...testCases];
       
-      for (let i = 0; i < updatedCases.length; i++) {
-        const tc = updatedCases[i];
-        let data;
-        try {
-          const res = await fetch(`${API_BASE_URL}/code/execute`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-            body: JSON.stringify({ source_code: code, language_id: getJudge0LangId(language), stdin: tc.input || '' })
-          });
-          data = await res.json();
-        } catch (err) {
-          tc.actualOutput = `Network Error: ${err.message}`;
-          tc.passed = false;
-          tc.error = true;
-          continue;
-        }
+      const res = await fetch(`${API_BASE_URL}/code/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ 
+          source_code: code, 
+          language_id: getJudge0LangId(language), 
+          testCases: testCases.map(tc => ({ input: tc.input || '' }))
+        })
+      });
+      
+      const data = await res.json();
+      
+      // Ignore if this is a stale request
+      if (currentExecutionId !== executionId.current) return;
 
-        if (data.success) {
-          const actual = (data.output || data.stdout || '').trim();
-          const expected = tc.expectedOutput.trim();
+      if (!res.ok || (data.success === false && !data.results)) {
+        throw new Error(data.message || 'Execution failed');
+      }
+
+      const results = data.results || [data]; 
+      const updatedCases = [...testCases];
+      let passedCount = 0;
+
+      for (let i = 0; i < results.length; i++) {
+        if (!updatedCases[i]) continue;
+        const result = results[i];
+        const tc = updatedCases[i];
+
+        if (result.success) {
+          const actual = (result.output || result.stdout || '').trim();
+          const expected = (tc.expectedOutput || '').trim();
           tc.passed = actual === expected;
           tc.actualOutput = actual;
           if (tc.passed) passedCount++;
         } else {
-          tc.actualOutput = data.message || data.type || 'Execution error';
+          tc.actualOutput = result.message || result.type || 'Execution error';
           tc.passed = false;
           tc.error = true;
-          tc.errorType = data.type;
+          tc.errorType = result.type;
         }
       }
       
       setTestCases(updatedCases);
-      const hasErrors = updatedCases.some(tc => tc.error);
       const firstError = updatedCases.find(tc => tc.error);
       
-      if (hasErrors) {
-        const errorLabel = firstError?.errorType || 'Runtime Error';
-        
+      if (firstError) {
+        const errorLabel = firstError.errorType || 'Runtime Error';
         setExecutionResult({ 
           status: errorLabel, 
           type: 'error', 
           passed: passedCount, 
           total: updatedCases.length,
           errorType: errorLabel.toLowerCase().includes('compilation') || errorLabel.toLowerCase().includes('syntax') ? 'compilation' : 'runtime',
-          body: firstError?.actualOutput || 'No detailed error message available.'
+          body: firstError.actualOutput || 'No detailed error message available.'
         });
       } else if (passedCount === updatedCases.length) {
         setExecutionResult({ status: 'Accepted', type: 'success', passed: passedCount, total: updatedCases.length });
@@ -285,18 +327,29 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
         setExecutionResult({ status: 'Wrong Answer', type: 'error', passed: passedCount, total: updatedCases.length });
       }
     } catch (e) {
-      setExecutionResult({ status: 'Network Error', body: e.message, type: 'error' });
+      if (currentExecutionId === executionId.current) {
+        setExecutionResult({ status: 'Network Error', body: e.message, type: 'error' });
+      }
     } finally {
-      setIsRunning(false);
+      if (currentExecutionId === executionId.current) {
+        setIsRunning(false);
+      }
     }
   };
 
   const handleSubmit = async () => {
     if (!code.trim()) return;
+    
+    
+    const currentExecutionId = ++executionId.current;
+    
     setIsSubmitting(true);
     setConsoleOpen(true);
     setConsoleTab('result');
     setExecutionResult({ status: 'Judging...', type: 'loading' });
+    
+    
+    setTestCases(prev => prev.map(tc => ({ ...tc, actualOutput: '', passed: null, error: false })));
 
     try {
       if (assignment) {
@@ -306,6 +359,10 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
           body: JSON.stringify({ code, language })
         });
         const data = await res.json();
+        
+        
+        if (currentExecutionId !== executionId.current) return;
+
         if (!res.ok) throw new Error(data.message);
         
         const backendTests = data.submission.testResults || [];
@@ -334,7 +391,7 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
           overallStatus = 'Runtime Error';
           body = mappedTestCases.find(t => t.errorType === 'runtime')?.actualOutput || '';
         } else if (failedTestCase) {
-           // Check if it's a silent runtime error not caught by Judge0 status but showing in output
+           // Check if it's a silent runtime error
            if (failedTestCase.actualOutput?.toLowerCase().includes('error') || failedTestCase.actualOutput?.toLowerCase().includes('exception')) {
               overallStatus = 'Runtime Error';
               body = failedTestCase.actualOutput;
@@ -344,30 +401,97 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
         setExecutionResult({ 
           status: overallStatus, 
           type: overallStatus === 'Accepted' ? 'success' : 'error',
-          passed: passedCount,
-          total: totalCount,
+          passed: data.submission.passedTestCases || passedCount,
+          total: data.submission.totalTestCases || totalCount,
           score: data.submission.score,
           isSubmission: true,
-          body: body || (overallStatus === 'Wrong Answer' ? '' : 'No detailed error available.')
+          executionTime: data.submission.executionTime,
+          memoryUsed: data.submission.memoryUsed,
+          body: data.submission.errorMessage || body || (overallStatus === 'Wrong Answer' ? '' : 'No detailed error available.')
         });
         setSubmissionHistory(data.submission);
         fetchSubmissions(); // Refresh history list
         onSubmit && onSubmit(); 
+      } else if (problem) {
+        // Practice mode submission
+        const res = await fetch(`${API_BASE_URL}/code/practice/${problem._id}/submit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({ code, language })
+        });
+        const data = await res.json();
+
+        if (currentExecutionId !== executionId.current) return;
+        if (!res.ok) throw new Error(data.message);
+
+        const backendTests = data.submission.testResults || [];
+        const mappedTestCases = backendTests.map(tr => ({
+          input: tr.testCase?.input || 'Hidden',
+          expectedOutput: tr.testCase?.expectedOutput || 'Hidden',
+          actualOutput: tr.actualOutput || '',
+          passed: tr.passed,
+          errorType: tr.errorType
+        }));
+        setTestCases(mappedTestCases);
+        setActiveTestCaseIdx(0);
+
+        const passedCount = mappedTestCases.filter(t => t.passed).length;
+        const totalCount = mappedTestCases.length;
+        const failedTestCase = mappedTestCases.find(t => !t.passed);
+        let overallStatus = 'Wrong Answer';
+        let body = '';
+
+        if (data.submission.status === 'accepted') {
+          overallStatus = 'Accepted';
+        } else if (mappedTestCases.some(t => t.errorType === 'compilation')) {
+          overallStatus = 'Compilation Error';
+          body = mappedTestCases.find(t => t.errorType === 'compilation')?.actualOutput || '';
+        } else if (mappedTestCases.some(t => t.errorType === 'runtime')) {
+          overallStatus = 'Runtime Error';
+          body = mappedTestCases.find(t => t.errorType === 'runtime')?.actualOutput || '';
+        } else if (failedTestCase) {
+          if (failedTestCase.actualOutput?.toLowerCase().includes('error') || failedTestCase.actualOutput?.toLowerCase().includes('exception')) {
+            overallStatus = 'Runtime Error';
+            body = failedTestCase.actualOutput;
+          }
+        }
+
+        setExecutionResult({
+          status: overallStatus,
+          type: overallStatus === 'Accepted' ? 'success' : 'error',
+          passed: data.submission.passedTestCases || passedCount,
+          total: data.submission.totalTestCases || totalCount,
+          score: data.submission.score, 
+          isSubmission: true,
+          isPractice: true,
+          executionTime: data.submission.executionTime,
+          memoryUsed: data.submission.memoryUsed,
+          body: data.submission.errorMessage || body
+        });
+        setSubmissionHistory(data.submission);
+        fetchSubmissions();
+        onSubmit && onSubmit();
       } else {
         await handleRun();
-        setExecutionResult(prev => ({ ...prev, isSubmission: true }));
+        if (currentExecutionId === executionId.current) {
+          setExecutionResult(prev => ({ ...prev, isSubmission: true }));
+        }
       }
     } catch (e) {
-      setExecutionResult({ status: 'Submission Failed', body: e.message, type: 'error' });
+      if (currentExecutionId === executionId.current) {
+        setExecutionResult({ status: 'Submission Failed', body: e.message, type: 'error' });
+      }
     } finally {
-      setIsSubmitting(false);
+      if (currentExecutionId === executionId.current) {
+        setIsSubmitting(false);
+      }
     }
   };
 
   return (
     <div className="flex flex-col h-screen w-full bg-[#0a0a0a] text-slate-300 font-sans absolute top-0 left-0 z-50">
       
-      {/* Main Layout Area */}
+      {}
       <div 
         className="flex flex-1 min-h-0 container mx-auto max-w-[1800px] p-2 gap-2 relative"
         onMouseMove={(e) => {
@@ -377,7 +501,7 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
             if (newWidth > 20 && newWidth < 80) setLeftWidth(newWidth);
           } else if (isDraggingHeight) {
             const containerHeight = window.innerHeight;
-            // Calculate height from bottom
+            
             const newHeight = ((containerHeight - e.clientY) / containerHeight) * 100;
             if (newHeight > 10 && newHeight < 70) setConsoleHeight(newHeight);
           }
@@ -386,7 +510,7 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
         onMouseLeave={() => { setIsDragging(false); setIsDraggingHeight(false); }}
       >
         
-        {/* Left Pane: Description & Submissions */}
+        {}
         <div 
           style={{ width: isMaximized ? '0%' : `${leftWidth}%` }}
           className={`transition-all duration-75 ease-in-out ${isMaximized ? 'opacity-0 overflow-hidden' : 'flex flex-col'} bg-[#1a1c23] rounded-xl border border-[#2a2d35] overflow-hidden shrink-0`}
@@ -410,7 +534,7 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
           <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-[#444] scrollbar-track-transparent">
              {leftTab === 'description' && (
                <div className="animate-in fade-in duration-300">
-                 {/* Problem Navigator for Assignments */}
+                 {}
                  {assignment && assignment.assignment?.problems?.length > 1 && (
                    <div className="mb-6 flex gap-2 overflow-x-auto pb-3 scrollbar-none border-b border-[#2a2d35]">
                      {assignment.assignment.problems.map((p, idx) => {
@@ -488,50 +612,111 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
                <div className="animate-in fade-in duration-300 h-full">
                  {allSubmissions && allSubmissions.length > 0 ? (
                    <div className="space-y-4 pb-10">
-                     {allSubmissions.map((sub, idx) => (
-                       <div key={sub._id || idx} className="bg-[#14151a] border border-[#2a2d35] rounded-xl overflow-hidden hover:border-[#3e4451] transition-colors group">
-                         <div className="p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#1a1c23]">
-                           <div className="flex items-center gap-4">
-                             <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${sub.status === 'accepted' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
-                               {sub.status === 'accepted' ? <CheckCircle className="w-5 h-5"/> : <XCircle className="w-5 h-5"/>}
-                             </div>
-                             <div>
-                               <p className={`text-lg font-bold tracking-tight ${sub.status === 'accepted' ? 'text-emerald-400' : 'text-red-400'}`}>
-                                 {(sub.status || 'unknown').replace('_', ' ').toUpperCase()}
-                               </p>
-                               <p className="text-xs text-slate-500 mt-0.5">Submitted on {new Date(sub.submittedAt).toLocaleString()}</p>
-                             </div>
-                           </div>
-                           <div className="flex items-center gap-6 self-end md:self-auto">
-                             <div className="text-right">
-                               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Language</p>
-                               <p className="text-sm text-slate-300 font-mono bg-[#2a2d35] px-2 py-0.5 rounded text-center inline-block">{sub.language || 'N/A'}</p>
-                             </div>
-                             <div className="text-right border-l border-[#2a2d35] pl-6">
-                               <p className="text-2xl font-black text-white leading-none">{sub.score !== undefined ? sub.score : '--'}</p>
-                               <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mt-1">Score</p>
-                             </div>
-                           </div>
-                         </div>
-                         
-                         <div className="p-4 bg-[#14151a]">
-                           <button 
-                             onClick={() => toggleSubmissionCode(sub._id || idx)}
-                             className="w-full flex items-center justify-between text-xs font-bold text-slate-500 hover:text-slate-300 transition-colors uppercase tracking-widest"
-                           >
-                             <span className="flex items-center gap-2"><Code2 className="w-4 h-4 text-indigo-400"/> Code</span>
-                             {expandedSubmissions[sub._id || idx] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                           </button>
-                           {expandedSubmissions[sub._id || idx] && (
-                             <div className="mt-3 bg-[#181a20] rounded-xl border border-[#2a2d35] p-4 shadow-inner overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                               <pre className="text-xs font-mono text-slate-300 overflow-x-auto whitespace-pre selection:bg-indigo-500/30">
-                                 {sub.code}
-                               </pre>
-                             </div>
-                           )}
-                         </div>
-                       </div>
-                     ))}
+                      {allSubmissions.map((sub, idx) => {
+                        const isExpanded = expandedSubId === sub._id;
+                        return (
+                          <div key={sub._id || idx} className={`bg-[#14151a] border ${isExpanded ? 'border-indigo-500/50 ring-1 ring-indigo-500/20' : 'border-[#2a2d35]'} rounded-xl overflow-hidden hover:border-[#3e4451] transition-all group`}>
+                            <div 
+                              className="p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#1a1c23] cursor-pointer"
+                              onClick={() => setExpandedSubId(isExpanded ? null : sub._id)}
+                            >
+                              <div className="flex items-center gap-4">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${sub.status === 'accepted' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                                  {sub.status === 'accepted' ? <CheckCircle className="w-5 h-5"/> : <XCircle className="w-5 h-5"/>}
+                                </div>
+                                <div>
+                                  <p className={`text-lg font-bold tracking-tight ${sub.status === 'accepted' ? 'text-emerald-400' : 'text-red-400'}`}>
+                                    {(sub.status || 'unknown').replace('_', ' ').toUpperCase()}
+                                  </p>
+                                  <p className="text-xs text-slate-500 mt-0.5">Submitted on {new Date(sub.submittedAt).toLocaleString()}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-6 self-end md:self-auto">
+                                <div className="text-right">
+                                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Language</p>
+                                  <p className="text-sm text-slate-300 font-mono bg-[#2a2d35] px-2 py-0.5 rounded text-center inline-block">{sub.language || 'N/A'}</p>
+                                </div>
+                                <div className="text-right border-l border-[#2a2d35] pl-6 min-w-[80px]">
+                                   <p className="text-2xl font-black text-white leading-none">
+                                     {sub.score !== undefined ? sub.score : '--'}
+                                   </p>
+                                   <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mt-1">
+                                     Score
+                                   </p>
+                                </div>
+                                <ChevronDown className={`w-5 h-5 text-slate-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                              </div>
+                            </div>
+
+                            <AnimatePresence>
+                              {isExpanded && (
+                                <motion.div 
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: 'auto', opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  className="border-t border-[#2a2d35]"
+                                >
+                                  <div className="p-6 bg-[#0d0e12] space-y-6">
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                      <div className="bg-[#1a1c23] p-3 rounded-xl border border-white/5">
+                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Passed Cases</p>
+                                        <p className="text-sm font-bold text-white">{sub.passedTestCases || 0} / {sub.totalTestCases || 0}</p>
+                                      </div>
+                                      <div className="bg-[#1a1c23] p-3 rounded-xl border border-white/5">
+                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Runtime</p>
+                                        <p className="text-sm font-bold text-white">{sub.executionTime || 0} ms</p>
+                                      </div>
+                                      <div className="bg-[#1a1c23] p-3 rounded-xl border border-white/5">
+                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Memory</p>
+                                        <p className="text-sm font-bold text-white">{(sub.memoryUsed || 0).toFixed(2)} KB</p>
+                                      </div>
+                                      <div className="bg-[#1a1c23] p-3 rounded-xl border border-white/5">
+                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Status</p>
+                                        <p className={`text-sm font-black uppercase ${sub.status === 'accepted' ? 'text-emerald-400' : 'text-red-400'}`}>{sub.status}</p>
+                                      </div>
+                                    </div>
+
+                                    {sub.errorMessage && (
+                                      <div className="space-y-2">
+                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Error Details</p>
+                                        <div className="bg-red-500/5 border border-red-500/10 p-4 rounded-xl font-mono text-xs text-red-300 whitespace-pre-wrap">
+                                          {sub.errorMessage}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    <div className="space-y-2">
+                                      <div className="flex items-center justify-between">
+                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Submitted Code</p>
+                                        <button 
+                                          onClick={() => setCode(sub.code)}
+                                          className="text-[10px] font-black text-indigo-400 hover:text-indigo-300 uppercase tracking-widest flex items-center gap-1"
+                                        >
+                                          <Code2 className="w-3 h-3"/> Load to Editor
+                                        </button>
+                                      </div>
+                                      <div className="bg-[#1a1c23] p-4 rounded-xl border border-white/5 font-mono text-sm text-slate-300 overflow-x-auto max-h-[300px]">
+                                        <pre>{sub.code}</pre>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex gap-3">
+                                      <button 
+                                        onClick={() => {
+                                          handleAnalysis(sub._id || sub.id);
+                                        }}
+                                        className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2"
+                                      >
+                                        <Cpu className="w-4 h-4"/> {sub.aiAnalysis && sub.aiAnalysis.timeComplexity ? 'View AI Analysis' : 'Analyze Code with Gemini'}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        );
+                      })}
                    </div>
                  ) : (
                    <div className="flex flex-col items-center justify-center h-full text-slate-500 text-sm space-y-4">
@@ -545,7 +730,7 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
 
         </div>
 
-        {/* Drag Handle */}
+        {}
         {!isMaximized && (
           <div 
             className="w-1.5 cursor-col-resize hover:bg-indigo-500 rounded transition-colors shrink-0 flex items-center justify-center group z-10"
@@ -555,7 +740,7 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
           </div>
         )}
 
-        {/* Right Pane: Code Editor + Console */}
+        {}
         <div 
           style={{ width: isMaximized ? '100%' : `calc(${100 - leftWidth}% - 14px)` }}
           className={`transition-all duration-75 ease-in-out flex flex-col gap-2 min-h-0 shrink-0`}
@@ -565,7 +750,7 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
             className="flex flex-col bg-[#1a1c23] rounded-xl border border-[#2a2d35] overflow-hidden min-h-0 relative"
             style={{ height: consoleOpen ? `${100 - consoleHeight}%` : 'calc(100% - 3.5rem - 0.5rem)' }}
           >
-             {/* Editor Header */}
+             {}
              <div className="h-12 bg-[#14151a] border-b border-[#2a2d35] flex items-center justify-between px-4 shrink-0">
                <div className="flex items-center gap-3">
                  <div className="flex px-3 py-1.5 bg-[#20232a] border border-[#333] rounded-lg items-center gap-2 group hover:border-[#444] transition-colors">
@@ -639,8 +824,8 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
              </div>
           </div>
 
-          {/* Bottom Pane: Console & Action Bar */}
-          {/* Vertical Resizer Handle */}
+          {}
+          {}
           {consoleOpen && (
             <div 
               className="h-1.5 cursor-row-resize hover:bg-white/10 transition-colors shrink-0 flex items-center justify-center group z-10"
@@ -655,7 +840,7 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
             style={consoleOpen ? { height: `${consoleHeight}%` } : {}}
           >
              
-             {/* Actions & Console Header */}
+             {}
              <div className="h-14 bg-[#14151a] border-b border-[#2a2d35] flex items-center justify-between px-4 shrink-0 select-none">
                 <div className="flex items-center gap-2 cursor-pointer p-2 hover:bg-[#20232a] rounded-lg transition-colors" onClick={() => setConsoleOpen(!consoleOpen)}>
                   <span className={`text-sm font-bold flex items-center gap-2 ${consoleOpen ? 'text-white' : 'text-slate-400'}`}>
@@ -664,13 +849,13 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
                   {consoleOpen ? <ChevronDown className="w-4 h-4 text-slate-500" /> : <ChevronUp className="w-4 h-4 text-slate-500" />}
                 </div>
                 
-                {/* Moved Run/Submit buttons to the right side of the bottom pane header like LeetCode */}
+                {}
                 <div className="flex items-center gap-3">
                    <button 
                      onClick={(e) => { e.stopPropagation(); handleAnalysis(); }} 
-                     disabled={isRunning || isSubmitting || isAnalyzing || !submissionHistory}
-                     className={`px-4 py-2 ${!submissionHistory ? 'bg-[#2a2d35] text-slate-500 cursor-not-allowed' : 'bg-gradient-to-r from-purple-600/20 to-indigo-600/20 hover:from-purple-500/30 hover:to-indigo-500/30 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.1)]'} rounded-lg text-sm font-bold transition flex items-center gap-2 border border-indigo-500/20`}
-                     title={!submissionHistory ? "Submit code first to analyze" : "AI Code Analysis"}
+                     disabled={isRunning || isSubmitting || isAnalyzing}
+                     className={`px-4 py-2 ${!submissionHistory && !code.trim() ? 'bg-[#2a2d35] text-slate-500 cursor-not-allowed' : 'bg-gradient-to-r from-purple-600/20 to-indigo-600/20 hover:from-purple-500/30 hover:to-indigo-500/30 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.1)]'} rounded-lg text-sm font-bold transition flex items-center gap-2 border border-indigo-500/20`}
+                     title={!submissionHistory && !code.trim() ? "Write some code first to analyze" : "AI Code Analysis"}
                    >
                      {isAnalyzing ? <Clock className="w-4 h-4 animate-spin"/> : <Cpu className="w-4 h-4" />} Analyze
                    </button>
@@ -779,7 +964,7 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
                                </div>
                                <p>Run or Submit your code to evaluate against test cases.</p>
                              </motion.div>
-                           ) : executionResult.type === 'loading' ? (
+                           ) : executionResult.type === 'loading' || executionResult.isAnalysis && !executionResult.success ? (
                              <motion.div 
                                key="loading"
                                initial={{ opacity: 0 }}
@@ -792,6 +977,7 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
                                  <div className="absolute inset-0 bg-indigo-500/20 blur-xl animate-pulse rounded-full"></div>
                                </div>
                                <p className="text-sm font-black uppercase tracking-[0.2em] text-indigo-400 animate-pulse">{executionResult.status}</p>
+                               {executionResult.message && <p className="text-sm text-slate-500 mt-2 text-center max-w-md">{executionResult.message}</p>}
                              </motion.div>
                            ) : (
                              <motion.div 
@@ -820,46 +1006,37 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
                                     </div>
                                   )}
                                </div>
-                               
-                               {executionResult.isAnalysis && aiAnalysisResult && (
-                                 <motion.div 
-                                   initial={{ y: 20, opacity: 0 }} 
-                                   animate={{ y: 0, opacity: 1 }} 
-                                   className="bg-indigo-500/5 border border-indigo-500/20 rounded-2xl p-6 mb-8 relative overflow-hidden"
-                                 >
-                                   <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500/50"></div>
-                                   <h4 className="text-lg font-black text-indigo-400 mb-6 uppercase tracking-tight flex items-center gap-2">
-                                     <Cpu className="w-5 h-5"/> Gemini AI Assessment
-                                   </h4>
-                                   
-                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                     <div className="bg-[#12141a] p-5 rounded-xl border border-indigo-500/10 shadow-inner">
-                                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2"><Clock className="w-3 h-3 text-emerald-400"/> Time Complexity</p>
-                                       <p className="text-sm text-slate-300 font-mono leading-relaxed">{aiAnalysisResult.timeComplexity}</p>
-                                     </div>
-                                     <div className="bg-[#12141a] p-5 rounded-xl border border-indigo-500/10 shadow-inner">
-                                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2"><Cpu className="w-3 h-3 text-cyan-400"/> Space Complexity</p>
-                                       <p className="text-sm text-slate-300 font-mono leading-relaxed">{aiAnalysisResult.spaceComplexity}</p>
-                                     </div>
-                                   </div>
-                                   
-                                   <div className="space-y-4">
-                                     {[
-                                        { title: 'Readability', value: aiAnalysisResult.readability, icon: <BookOpen className="w-4 h-4 text-blue-400"/> },
-                                        { title: 'Naming Conventions', value: aiAnalysisResult.naming, icon: <Code2 className="w-4 h-4 text-indigo-400"/> },
-                                        { title: 'Optimization Suggestions', value: aiAnalysisResult.optimization, icon: <Zap className="w-4 h-4 text-amber-400"/> },
-                                        { title: 'Bugs & Edge Cases', value: aiAnalysisResult.bugs, icon: <AlertCircle className="w-4 h-4 text-rose-400"/> },
-                                        { title: 'Best Practices', value: aiAnalysisResult.bestPractices, icon: <CheckCircle className="w-4 h-4 text-emerald-400"/> }
-                                     ].map((item, id) => item.value && (
-                                       <div key={id} className="bg-[#12141a] p-5 rounded-xl border border-white/5 shadow-inner">
-                                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">{item.icon} {item.title}</p>
-                                         <p className="text-sm text-slate-300 leading-relaxed font-medium whitespace-pre-wrap">{item.value}</p>
-                                       </div>
-                                     ))}
-                                   </div>
-                                 </motion.div>
-                               )}
 
+                                {executionResult.total > 0 && (
+                                 <div className="flex gap-4 flex-wrap mb-6">
+                                    <div className="bg-[#181a20] border border-emerald-500/20 px-6 py-4 rounded-2xl flex flex-col gap-1 shadow-lg ring-1 ring-emerald-500/10">
+                                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Test Cases Passed</span>
+                                      <span className={`text-2xl font-black ${executionResult.passed === executionResult.total ? "text-emerald-400" : "text-amber-400"}`}>
+                                        {executionResult.passed} <span className="text-slate-600 font-medium">/</span> {executionResult.total}
+                                      </span>
+                                    </div>
+                                    {(executionResult.executionTime !== undefined || executionResult.memoryUsed !== undefined) && (
+                                      <>
+                                        <div className="bg-[#181a20] border border-[#2a2d35] px-6 py-4 rounded-2xl flex flex-col gap-1 shadow-sm">
+                                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Runtime</span>
+                                          <span className="text-xl font-black text-indigo-400">{executionResult.executionTime || 0} ms</span>
+                                        </div>
+                                        <div className="bg-[#181a20] border border-[#2a2d35] px-6 py-4 rounded-2xl flex flex-col gap-1 shadow-sm">
+                                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Memory</span>
+                                          <span className="text-xl font-black text-indigo-400">{(executionResult.memoryUsed || 0).toFixed(2)} KB</span>
+                                        </div>
+                                      </>
+                                    )}
+                                    <div className="bg-[#181a20] border border-[#2a2d35] px-6 py-4 rounded-2xl flex flex-col gap-1 shadow-sm">
+                                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Mode</span>
+                                      <span className="text-xl font-black text-indigo-400 uppercase tracking-wider text-xs flex items-center gap-2">
+                                        <div className={`w-1.5 h-1.5 rounded-full ${executionResult.isSubmission ? 'bg-indigo-500 animate-pulse' : 'bg-slate-500'}`}></div>
+                                        {executionResult.isSubmission ? (executionResult.isPractice ? 'Practice' : 'Official') : 'Trial'}
+                                      </span>
+                                    </div>
+                                 </div>
+                                )}
+                               
                                {!executionResult.isAnalysis && executionResult.type === 'error' && (executionResult.status.includes('Error') || executionResult.status === 'Wrong Answer') && (
                                  <motion.div 
                                    initial={{ y: 20, opacity: 0 }} 
@@ -875,7 +1052,7 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
                                         <h4 className={`text-lg font-black ${executionResult.status === 'Wrong Answer' ? 'text-amber-400' : 'text-red-400'} mb-1 uppercase tracking-tight flex items-center gap-2`}>
                                           {executionResult.status}
                                           <span className={`text-[10px] ${executionResult.status === 'Wrong Answer' ? 'bg-amber-500' : 'bg-red-500'} text-white px-2 py-0.5 rounded-full font-black`}>
-                                            {executionResult.status === 'Wrong Answer' ? 'INCORRECT' : 'CRITICAL'}
+                                            {executionResult.status === 'Wrong Answer' ? 'INCORRECT' : 'ERROR'}
                                           </span>
                                         </h4>
                                         <p className="text-sm text-slate-400 font-medium mb-4 leading-relaxed">
@@ -937,43 +1114,98 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
                                  </motion.div>
                                )}
 
-                               {!executionResult.isAnalysis && (
-                                 <>
-                                   <div className="flex gap-4 flex-wrap">
-                                      <div className="bg-[#181a20] border border-[#2a2d35] px-5 py-3 rounded-2xl flex flex-col gap-1 shadow-sm">
-                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Test Cases Passed</span>
-                                        <span className={`text-xl font-black ${executionResult.passed === executionResult.total ? "text-emerald-400" : "text-amber-400"}`}>
-                                          {executionResult.passed} <span className="text-slate-600 font-medium">/</span> {executionResult.total}
-                                        </span>
-                                      </div>
-                                      <div className="bg-[#181a20] border border-[#2a2d35] px-5 py-3 rounded-2xl flex flex-col gap-1 shadow-sm">
-                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Execution Mode</span>
-                                        <span className="text-xl font-black text-white uppercase tracking-wider text-xs">
-                                          {executionResult.isSubmission ? 'Official Submission' : 'Verification Run'}
-                                        </span>
-                                      </div>
-                                   </div>
+                               {executionResult.isAnalysis && (
+                                 <motion.div 
+                                   initial={{ y: 20, opacity: 0 }} 
+                                   animate={{ y: 0, opacity: 1 }} 
+                                   className="bg-indigo-500/5 border border-indigo-500/20 rounded-2xl p-6 mb-8 relative overflow-hidden"
+                                 >
+                                   <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500/50"></div>
+                                   <h4 className="text-lg font-black text-indigo-400 mb-6 uppercase tracking-tight flex items-center gap-2">
+                                     <Cpu className="w-5 h-5"/> Gemini AI Assessment
+                                   </h4>
+                                   
+                                   {isAnalyzing ? (
+                                     <div className="flex flex-col items-center justify-center py-10 gap-4">
+                                       <Clock className="w-12 h-12 text-indigo-400 animate-spin opacity-50" />
+                                       <p className="text-slate-400 font-medium animate-pulse text-center">
+                                         {executionResult.status === 'Analyzing...' ? 'Gemini is examining your code for complexity, logic, and potential enhancements...' : executionResult.status}
+                                       </p>
+                                     </div>
+                                   ) : aiAnalysisResult ? (
+                                     <>
+                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                         <div className="bg-[#12141a] p-5 rounded-xl border border-indigo-500/10 shadow-inner">
+                                           <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2"><Clock className="w-3 h-3 text-emerald-400"/> Time Complexity</p>
+                                           <p className="text-sm text-slate-300 font-mono leading-relaxed">{aiAnalysisResult.timeComplexity}</p>
+                                         </div>
+                                         <div className="bg-[#12141a] p-5 rounded-xl border border-indigo-500/10 shadow-inner">
+                                           <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2"><Cpu className="w-3 h-3 text-cyan-400"/> Space Complexity</p>
+                                           <p className="text-sm text-slate-300 font-mono leading-relaxed">{aiAnalysisResult.spaceComplexity}</p>
+                                         </div>
+                                       </div>
+                                       
+                                       <div className="space-y-4">
+                                         {[
+                                          { label: 'Time Complexity', value: aiAnalysisResult.timeComplexity, icon: Clock, color: 'text-blue-400' },
+                                          { label: 'Space Complexity', value: aiAnalysisResult.spaceComplexity, icon: Layers, color: 'text-purple-400' },
+                                          { label: 'Readability', value: aiAnalysisResult.readability, icon: Eye, color: 'text-emerald-400' },
+                                          { label: 'Naming Suggestions', value: aiAnalysisResult.naming, icon: Edit3, color: 'text-rose-400' },
+                                          { label: 'Optimization', value: aiAnalysisResult.optimization, icon: TrendingUp, color: 'text-cyan-400' },
+                                          { label: 'Possible Bugs', value: aiAnalysisResult.bugs, icon: Bug, color: 'text-orange-400' },
+                                          { label: 'Best Practices', value: aiAnalysisResult.bestPractices, icon: ShieldCheck, color: 'text-indigo-400' }
+                                         ].map((item, id) => item.value && (
+                                           <div key={id} className="bg-[#12141a] p-5 rounded-xl border border-white/5 shadow-inner">
+                                             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">{item.icon && <item.icon className={`w-4 h-4 ${item.color}`}/>} {item.label}</p>
+                                             <p className="text-sm text-slate-300 leading-relaxed font-medium whitespace-pre-wrap">{item.value}</p>
+                                           </div>
+                                         ))}
+                                       </div>
+                                     </>
+                                   ) : (
+                                     <div className="p-10 bg-red-500/5 border border-red-500/10 rounded-2xl flex flex-col items-center justify-center gap-4 text-center">
+                                       <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center">
+                                         <AlertCircle className="w-8 h-8 text-red-500" />
+                                       </div>
+                                       <div>
+                                         <h5 className="text-red-400 font-bold mb-1">Analysis Failed</h5>
+                                         <p className="text-slate-500 text-sm max-w-sm">
+                                           {executionResult.message || 'Could not complete AI analysis at this time. Please check your connection and try again.'}
+                                         </p>
+                                       </div>
+                                       <button 
+                                         onClick={handleAnalysis}
+                                         className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-xl transition-colors shadow-lg shadow-indigo-600/20"
+                                       >
+                                         Try Again
+                                       </button>
+                                     </div>
+                                   )}
+                                 </motion.div>
+                               )}
 
-                                   <div className="space-y-4">
-                                      <p className="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">Detailed Breakdown</p>
-                                      <div className="flex gap-2.5 flex-wrap">
-                                         {testCases.map((tc, idx) => (
-                                           <button 
-                                             key={idx} 
-                                             onClick={() => setActiveTestCaseIdx(idx)} 
-                                             className={`px-5 py-2.5 flex items-center gap-3 text-xs font-black rounded-xl transition-all border-2 ${
-                                               activeTestCaseIdx === idx 
-                                               ? (tc.passed ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.1)]' : 'bg-red-500/10 border-red-500/50 text-red-400 shadow-[0_0_20px_rgba(248,113,113,0.1)]') 
-                                               : 'bg-[#181a20] border-[#2a2d35] text-slate-500 hover:border-slate-500 hover:text-slate-300'
-                                             }`}
-                                           >
-                                             <div className={`w-2 h-2 rounded-full ${tc.passed ? 'bg-emerald-500' : 'bg-red-500'} ${activeTestCaseIdx === idx ? 'animate-pulse' : ''}`}></div>
-                                             Case {idx + 1}
-                                             {tc.isHidden && <span className="text-[8px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded ml-1 uppercase">Hidden</span>}
-                                           </button>
-                                          ))}
-                                      </div>
+                               {!executionResult.isAnalysis && (
+                                 <div className="space-y-4">
+                                   <p className="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">Detailed Breakdown</p>
+                                   <div className="flex gap-2.5 flex-wrap">
+                                      {testCases.map((tc, idx) => (
+                                        <button 
+                                          key={idx} 
+                                          onClick={() => setActiveTestCaseIdx(idx)} 
+                                          className={`px-5 py-2.5 flex items-center gap-3 text-xs font-black rounded-xl transition-all border-2 ${
+                                            activeTestCaseIdx === idx 
+                                            ? (tc.passed ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.1)]' : 'bg-red-500/10 border-red-500/50 text-red-400 shadow-[0_0_20px_rgba(248,113,113,0.1)]') 
+                                            : 'bg-[#181a20] border-[#2a2d35] text-slate-500 hover:border-slate-500 hover:text-slate-300'
+                                          }`}
+                                        >
+                                          <div className={`w-2 h-2 rounded-full ${tc.passed ? 'bg-emerald-500' : 'bg-red-500'} ${activeTestCaseIdx === idx ? 'animate-pulse' : ''}`}></div>
+                                          Case {idx + 1}
+                                          {tc.isHidden && <span className="text-[8px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded ml-1 uppercase">Hidden</span>}
+                                        </button>
+                                       ))}
                                    </div>
+                                 </div>
+                               )}
 
                                    <div className="grid grid-cols-1 gap-6 mt-8">
                                       {testCases[activeTestCaseIdx]?.isHidden ? (
@@ -1020,8 +1252,6 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
                                         </>
                                       )}
                                    </div>
-                                 </>
-                               )}
 
                              </motion.div>
                            )}

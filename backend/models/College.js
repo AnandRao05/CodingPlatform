@@ -1,15 +1,3 @@
-/**
- * College Model
- * 
- * Represents a college/institution in the multi-tenant architecture.
- * Each college has its own isolated data including classes, subjects, users, and assignments.
- * 
- * Key Features:
- * - Unique college code for identification
- * - Domain-based access control (optional)
- * - Active/inactive status for college management
- * - Contact information for college administration
- */
 const mongoose = require('mongoose');
 
 const collegeSchema = new mongoose.Schema({
@@ -26,13 +14,13 @@ const collegeSchema = new mongoose.Schema({
     uppercase: true,
     trim: true,
     maxlength: 20,
-    match: /^[A-Z0-9]+$/ // Alphanumeric only
+    match: /^[A-Z0-9]+$/ 
   },
   domain: {
     type: String,
     trim: true,
     lowercase: true,
-    // Optional: for email domain validation (e.g., "university.edu")
+    
     validate: {
       validator: function(v) {
         return !v || /^[a-z0-9.-]+$/.test(v);
@@ -101,28 +89,28 @@ const collegeSchema = new mongoose.Schema({
   }
 });
 
-// Update the updatedAt field before saving
+
 collegeSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();
 });
 
-// Index for better query performance
+
 collegeSchema.index({ code: 1 }, { unique: true });
 collegeSchema.index({ isActive: 1 });
 collegeSchema.index({ domain: 1 }, { sparse: true });
 
-// Static method to find active college by code
+
 collegeSchema.statics.findActiveByCode = async function(code) {
   return this.findOne({ code: code.toUpperCase(), isActive: true });
 };
 
-// Static method to find active college by domain
+
 collegeSchema.statics.findActiveByDomain = async function(domain) {
   return this.findOne({ domain: domain.toLowerCase(), isActive: true });
 };
 
-// Instance method to check if user can signup
+
 collegeSchema.methods.canSignup = function(role) {
   if (!this.isActive) return false;
   if (role === 'student') return this.settings.allowStudentSignup;

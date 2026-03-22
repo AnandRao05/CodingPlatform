@@ -304,7 +304,7 @@ console.log("Solution result:", result);`,
     }
   ];
 
-  // Set default code when language changes
+  
   useEffect(() => {
     if (!code) {
       const selectedLang = languages.find(lang => lang.id === language);
@@ -314,12 +314,12 @@ console.log("Solution result:", result);`,
     }
   }, [language, code]);
 
-  // Editor mount handler
+  
   const handleEditorDidMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
 
-    // Configure Monaco Editor themes
+    
     monaco.editor.defineTheme('customDark', {
       base: 'vs-dark',
       inherit: true,
@@ -328,7 +328,7 @@ console.log("Solution result:", result);`,
         { token: 'keyword', foreground: '569CD6' },
         { token: 'string', foreground: 'CE9178' },
         { token: 'number', foreground: 'B5CEA8' },
-        // Syntax error highlighting
+        
         { token: 'syntax-error', foreground: 'FF0000', fontStyle: 'bold underline' },
       ],
       colors: {
@@ -339,7 +339,7 @@ console.log("Solution result:", result);`,
         'editorCursor.foreground': '#d4d4d4',
         'editorError.foreground': '#f48771',
         'editorWarning.foreground': '#cca700',
-        // Custom syntax error colors
+        
         'editorError.background': '#ff000033',
         'editorError.border': '#ff0000',
       }
@@ -353,7 +353,7 @@ console.log("Solution result:", result);`,
         { token: 'keyword', foreground: '0000FF' },
         { token: 'string', foreground: 'A31515' },
         { token: 'number', foreground: '098658' },
-        // Syntax error highlighting
+        
         { token: 'syntax-error', foreground: 'FF0000', fontStyle: 'bold underline' },
       ],
       colors: {
@@ -364,7 +364,7 @@ console.log("Solution result:", result);`,
         'editorCursor.foreground': '#000000',
         'editorError.foreground': '#e45649',
         'editorWarning.foreground': '#cca700',
-        // Custom syntax error colors
+        
         'editorError.background': '#ff000033',
         'editorError.border': '#ff0000',
       }
@@ -372,7 +372,7 @@ console.log("Solution result:", result);`,
 
     monaco.editor.setTheme(theme === 'vs-dark' ? 'customDark' : 'customLight');
 
-    // Configure Monaco diagnostics (syntax checking)
+    
     monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
       noSemanticValidation: false,
       noSyntaxValidation: false,
@@ -385,21 +385,21 @@ console.log("Solution result:", result);`,
       noSuggestionDiagnostics: false
     });
 
-    // Enable syntax validation for all supported languages
+    
     const supportedLanguages = ['javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp', 'go', 'rust', 'php', 'ruby'];
 
-    // Configure language-specific validation
+    
     if (language === 'python') {
       monaco.languages.setMonarchTokensProvider('python', {
         tokenizer: {
           root: [
-            // Keywords
+            
             [/\b(and|as|assert|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|not|or|pass|raise|return|try|while|with|yield)\b/, 'keyword'],
-            // Built-in functions
+            
             [/\b(len|print|input|range|str|int|float|list|dict|set|tuple|open|close|read|write)\b/, 'keyword.control'],
-            // Strings
-            [/"([^"\\]|\\.)*$/, 'string.invalid'],  // non-terminated string
-            [/'([^'\\]|\\.)*$/, 'string.invalid'],  // non-terminated string
+            
+            [/"([^"\\]|\\.)*$/, 'string.invalid'],  
+            [/'([^'\\]|\\.)*$/, 'string.invalid'],  
             [/"/, 'string', '@string_double'],
             [/'/, 'string', '@string_single'],
             // Comments
@@ -839,10 +839,10 @@ console.log("Solution result:", result);`,
 
   return (
     <div className="space-y-4">
-      {/* Toolbar */}
+      {}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
         <div className="flex flex-wrap items-center gap-4">
-          {/* Language Selection */}
+          {}
           <div className="flex items-center space-x-2">
             <label className="text-sm font-medium text-gray-700">Language:</label>
             <div className="relative">
@@ -864,7 +864,7 @@ console.log("Solution result:", result);`,
             </div>
           </div>
 
-          {/* Editor Controls */}
+          {}
           <div className="flex items-center space-x-2">
             <button
               onClick={handleRunCode}
@@ -909,7 +909,7 @@ console.log("Solution result:", result);`,
 
 
 
-          {/* Settings Toggle */}
+          {}
           <button
             onClick={() => setShowSettings(!showSettings)}
             className={`px-3 py-1 text-sm rounded transition-colors ${
@@ -921,7 +921,7 @@ console.log("Solution result:", result);`,
           </button>
         </div>
 
-        {/* Settings Panel */}
+        {}
         {showSettings && (
           <div className="mt-4 pt-4 border-t border-gray-200">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -956,11 +956,11 @@ console.log("Solution result:", result);`,
         )}
       </div>
 
-      {/* Monaco Editor with Input/Output */}
+      {}
       <div className="border border-gray-300 rounded-lg overflow-hidden">
-        {/* Input/Output Section - Above Editor */}
+        {}
         <div className="bg-gray-50 border-b border-gray-200 p-3">
-          {/* Tabs for Input/Output */}
+          {}
           <div className="flex space-x-1 mb-3">
             <button
               onClick={() => setShowSettings(prev => ({ ...prev, activeTab: 'input' }))}
@@ -984,7 +984,7 @@ console.log("Solution result:", result);`,
             </button>
           </div>
 
-          {/* Input Tab Content */}
+          {}
           {(showSettings.activeTab === 'input' || !showSettings.activeTab) && (
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -1090,7 +1090,7 @@ console.log("Solution result:", result);`,
           )}
         </div>
 
-        {/* Monaco Editor with Scroll and Touch Support */}
+        {}
         <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200 hover:scrollbar-thumb-gray-500 touch-pan-y">
           <Editor
             height="880px"
@@ -1162,7 +1162,7 @@ console.log("Solution result:", result);`,
       </div>
 
 
-      {/* Test Cases Section */}
+      {}
       <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800">Test Cases</h3>
@@ -1176,7 +1176,7 @@ console.log("Solution result:", result);`,
           </div>
         </div>
 
-        {/* Test Case Tabs */}
+        {}
         <div className="flex space-x-1 mb-4 overflow-x-auto">
           {testCases.map((testCase, index) => (
             <button
@@ -1198,11 +1198,11 @@ console.log("Solution result:", result);`,
           ))}
         </div>
 
-        {/* Active Test Case Content */}
+        {}
         {testCases[activeTestCase] && (
           <div className="bg-white p-4 rounded-lg border">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Input */}
+              {}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="block text-sm font-medium text-gray-700">Input:</label>
@@ -1225,7 +1225,7 @@ console.log("Solution result:", result);`,
                 />
               </div>
 
-              {/* Expected Output */}
+              {}
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">Expected Output:</label>
                 <textarea
@@ -1238,7 +1238,7 @@ console.log("Solution result:", result);`,
               </div>
             </div>
 
-            {/* Actual Output (shown after running tests) */}
+            {}
             {testCases[activeTestCase].actualOutput && (
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -1291,7 +1291,7 @@ console.log("Solution result:", result);`,
           </div>
         )}
 
-        {/* Test Results Summary */}
+        {}
         {executionResult?.testResults && (
           <div className="mt-4 p-4 bg-white rounded-lg border">
             <h4 className="font-medium text-gray-800 mb-2">Test Results Summary</h4>
@@ -1304,7 +1304,7 @@ console.log("Solution result:", result);`,
         )}
       </div>
 
-      {/* Problem Test Cases (if available) */}
+      {}
       {problem && problem.testCases && problem.testCases.length > 0 && (
         <div className="border border-gray-200 rounded-lg p-4 bg-blue-50">
           <h4 className="text-sm font-medium text-gray-700 mb-3">Sample Test Cases:</h4>
@@ -1342,10 +1342,10 @@ console.log("Solution result:", result);`,
 
 
 
-      {/* Execution Results */}
+      {}
       {executionResult && (
         <div className="border border-gray-300 rounded-lg overflow-hidden">
-          {/* Header */}
+          {}
           <div className={`px-4 py-3 flex items-center justify-between ${
             executionResult.success ? 'bg-green-50 border-b border-green-200' :
             executionResult.isTimeout ? 'bg-orange-50 border-b border-orange-200' :
@@ -1386,11 +1386,11 @@ console.log("Solution result:", result);`,
             </button>
           </div>
 
-          {/* Content */}
+          {}
           <div className="p-4 bg-white">
             {executionResult.success ? (
               <div className="space-y-4">
-                {/* Performance Metrics */}
+                {}
                 {(executionResult.time || executionResult.memory) && (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     {executionResult.time && (
@@ -1416,7 +1416,7 @@ console.log("Solution result:", result);`,
                   </div>
                 )}
 
-                {/* Output Sections */}
+                {}
                 <div className="space-y-3">
                   {executionResult.stdout && (
                     <div>
@@ -1478,7 +1478,7 @@ console.log("Solution result:", result);`,
                   <pre className="whitespace-pre-wrap text-sm">{executionResult.error}</pre>
                 </div>
 
-                {/* Syntax Error Details */}
+                {}
                 {executionResult.hasSyntaxErrors && (
                   <div className="bg-red-50 p-4 rounded-lg border border-red-200">
                     <h4 className="font-medium text-red-800 mb-2">🔍 Syntax Error Analysis:</h4>
@@ -1503,7 +1503,7 @@ console.log("Solution result:", result);`,
                   </div>
                 )}
 
-                {/* Troubleshooting Tips */}
+                {}
                 <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
                   <h4 className="font-medium text-yellow-800 mb-2">💡 Troubleshooting Tips:</h4>
                   <ul className="text-sm text-yellow-700 space-y-1">

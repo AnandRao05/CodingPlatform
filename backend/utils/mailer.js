@@ -8,9 +8,6 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-/**
- * Send a professional email
- */
 const sendEmail = async (to, subject, text, html) => {
   try {
     const mailOptions = {
@@ -26,7 +23,7 @@ const sendEmail = async (to, subject, text, html) => {
     return info;
   } catch (error) {
     console.error('Email send error:', error);
-    // Fallback info for the user if credentials are not yet set
+    
     console.log(`\n\x1b[33m--- GMAIL SIMULATION FOR ${to} ---\x1b[0m`);
     console.log(`\x1b[1mSubject:\x1b[0m ${subject}`);
     console.log(`\x1b[1mBody:\x1b[0m    ${text}`);
@@ -35,9 +32,6 @@ const sendEmail = async (to, subject, text, html) => {
   }
 };
 
-/**
- * Send OTP specific email
- */
 const sendOtpEmail = async (email, otp, type = 'Account Verification') => {
   const subject = `${otp} is your ${type} code`;
   const text = `Your secure code for ${type} is: ${otp}. It expires in 10 minutes.`;

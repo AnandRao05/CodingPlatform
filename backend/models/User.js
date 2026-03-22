@@ -64,7 +64,7 @@ const userSchema = new mongoose.Schema({
   otpExpires: Date
 });
 
-// Hash password before saving
+
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
 
@@ -78,13 +78,13 @@ userSchema.pre('save', async function(next) {
   }
 });
 
-// Compare password method
+
 userSchema.methods.comparePassword = async function(candidatePassword) {
   const bcrypt = require('bcryptjs');
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-// Update updatedAt on save
+
 userSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();

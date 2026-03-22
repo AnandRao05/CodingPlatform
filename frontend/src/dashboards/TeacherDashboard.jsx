@@ -19,7 +19,7 @@ const TeacherDashboard = () => {
   const [myProblems, setMyProblems] = useState([]);
   const [loading, setLoading] = useState(false);
   
-  // Modals & Forms
+  
   const [showCreateAssignment, setShowCreateAssignment] = useState(false);
   const [assignmentForm, setAssignmentForm] = useState({ title: '', description: '', classId: user?.classId || '', dueDate: '', instructions: '', selectedProblems: [] });
   const [showCreateProblem, setShowCreateProblem] = useState(false);
@@ -44,6 +44,9 @@ const TeacherDashboard = () => {
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [showCodeViewer, setShowCodeViewer] = useState(false);
   const [overviewStats, setOverviewStats] = useState({ totalStudents: 0, problemsCreated: 0, activeAssignments: 0 });
+  
+  const [showScorecard, setShowScorecard] = useState(false);
+  const [scorecardData, setScorecardData] = useState(null);
 
   const handleLogout = async () => {
     await logout();
@@ -74,7 +77,7 @@ const TeacherDashboard = () => {
   const handleCreateAssignment = async (e) => {
     e.preventDefault(); setLoading(true);
     try {
-      // Always enforce teacher's own classId — never rely on form input for classId
+      
       const classId = user?.classId || assignmentForm.classId;
       if (!classId) return alert('Your account is not assigned to a class. Contact admin.');
       await apiCall('/assignments', { method: 'POST', body: JSON.stringify({ ...assignmentForm, classId, problems: assignmentForm.selectedProblems.map(problemId => ({ problemId, order: 0 })), totalPoints: 100 }) });
@@ -117,8 +120,20 @@ const TeacherDashboard = () => {
     setLoading(true);
     try {
       const data = await apiCall(`/assignments/${assignment._id}/submissions/teacher`);
-      setSelectedAssignment(data.assignment); setAssignmentSubmissions(data.submissions); setShowSubmissions(true); setActiveTab('assignments');
+      setSelectedAssignment(data.assignment); setAssignmentSubmissions(data.submissions); setShowSubmissions(true); setShowScorecard(false); setActiveTab('assignments');
     } catch (e) { alert('Failed to load submissions'); } finally { setLoading(false); }
+  };
+
+  const viewAssignmentScorecard = async (assignment) => {
+    setLoading(true);
+    try {
+      const data = await apiCall(`/assignments/${assignment._id}/scorecard/teacher`);
+      setScorecardData(data);
+      setSelectedAssignment(assignment);
+      setShowScorecard(true);
+      setShowSubmissions(false);
+      setActiveTab('assignments');
+    } catch (e) { alert('Failed to load scorecard'); } finally { setLoading(false); }
   };
 
   const executeSubmissionCode = async (code, language) => {
@@ -189,7 +204,7 @@ const TeacherDashboard = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex text-slate-900 font-sans">
-      {/* Sidebar Navigation */}
+      {}
       <motion.aside initial={false} animate={{ width: sidebarOpen ? '260px' : '80px' }} className="bg-slate-900 text-white min-h-screen flex flex-col shrink-0 sticky top-0 transition-all z-40">
         <div className="h-16 flex items-center justify-between px-4 border-b border-white/10">
           {sidebarOpen && <span className="text-lg tracking-wide font-semibold truncate bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">RGUKT Platform</span>}
@@ -213,9 +228,9 @@ const TeacherDashboard = () => {
         </div>
       </motion.aside>
 
-      {/* Main Layout */}
+      {}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top Header */}
+        {}
         <header className="h-16 bg-white border-b border-slate-200 flex items-center px-8 shrink-0 sticky top-0 z-30 shadow-sm">
           <h1 className="text-xl font-bold tracking-tight text-slate-800 capitalize">
             {navigation.find(n => n.id === activeTab)?.name}
@@ -225,7 +240,7 @@ const TeacherDashboard = () => {
           </div>
         </header>
 
-        {/* Scrollable Content Area */}
+        {}
         <div className="flex-1 overflow-auto p-8 relative">
           <AnimatePresence mode='wait'>
             
@@ -389,16 +404,16 @@ const TeacherDashboard = () => {
                 <div className="flex justify-between items-center mb-8">
                   <div>
                     <h2 className="text-2xl font-bold text-slate-800 mb-1">
-                      {showSubmissions ? `Grade: ${selectedAssignment?.title}` : showEditForm ? `Edit: ${editingAssignment?.title}` : showCreateAssignment ? 'New Assignment' : 'Class Assignments'}
+                      {showSubmissions ? `Grade History: ${selectedAssignment?.title}` : showScorecard ? `Scorecard: ${selectedAssignment?.title}` : showCreateAssignment ? 'New Assignment' : showEditForm ? `Edit: ${editingAssignment?.title}` : 'Class Assignments'}
                     </h2>
                     <p className="text-slate-500">
-                      {showSubmissions ? "Review student submissions and provide feedback." : showCreateAssignment || showEditForm ? "Configure your assignment details and select problems." : "Manage homework and exams for your classes."}
+                      {showSubmissions ? "Review student submissions and provide feedback." : showScorecard ? "View the latest performance of all students in your class." : showCreateAssignment || showEditForm ? "Configure your assignment details and select problems." : "Manage homework and exams for your classes."}
                     </p>
                   </div>
                   <div className="flex gap-3">
-                    {showSubmissions && <button onClick={() => { setShowSubmissions(false); setSelectedAssignment(null); setAssignmentSubmissions([]); }} className="px-4 py-2 rounded-xl text-slate-600 bg-slate-100 hover:bg-slate-200 font-medium transition">Back</button>}
+                    {(showSubmissions || showScorecard) && <button onClick={() => { setShowSubmissions(false); setShowScorecard(false); setSelectedAssignment(null); setAssignmentSubmissions([]); setScorecardData(null); }} className="px-4 py-2 rounded-xl text-slate-600 bg-slate-100 hover:bg-slate-200 font-medium transition">Back</button>}
                     {showEditForm && <button onClick={() => { setShowEditForm(false); setEditingAssignment(null); }} className="px-4 py-2 rounded-xl text-slate-600 bg-slate-100 hover:bg-slate-200 font-medium transition">Cancel</button>}
-                    {!showSubmissions && !showEditForm && !showCreateAssignment && (
+                    {!showSubmissions && !showEditForm && !showCreateAssignment && !showScorecard && (
                       <button onClick={() => setShowCreateAssignment(true)} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-medium shadow-md shadow-indigo-600/20 hover:bg-indigo-700 transition flex items-center gap-2"><Plus className="w-4 h-4"/> Create</button>
                     )}
                     {(showCreateAssignment && !showSubmissions && !showEditForm) && (
@@ -437,14 +452,64 @@ const TeacherDashboard = () => {
                               </div>
                               {sub.feedback && <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl text-sm text-indigo-900"><span className="font-bold mr-2">Feedback given:</span>{sub.feedback}</div>}
                             </div>
-                            <div className="w-full xl:w-80 flex flex-col gap-3 justify-end border-t xl:border-t-0 xl:border-l border-slate-200 pt-6 xl:pt-0 xl:pl-6">
-                              <button onClick={() => { setSelectedSubmission(sub); setShowCodeViewer(true); }} className="w-full bg-slate-800 text-white rounded-xl py-2.5 font-medium flex items-center justify-center gap-2 hover:bg-slate-700 transition"><Eye className="w-4 h-4"/> Review Code</button>
-
-                            </div>
                           </div>
                         ))}
                       </div>
                     )}
+                  </div>
+                ) : showScorecard ? (
+                  <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm overflow-x-auto">
+                    <div className="mb-6 flex items-center justify-between">
+                       <div>
+                          <h3 className="text-xl font-bold text-slate-800 tracking-tight">Student Performance Matrix</h3>
+                          <p className="text-sm text-slate-500">Showing the latest evaluated score for each student per problem.</p>
+                       </div>
+                       <div className="flex gap-4">
+                          <div className="bg-indigo-50 px-4 py-2 rounded-xl border border-indigo-100">
+                             <span className="text-xs font-bold text-indigo-400 uppercase tracking-widest block">Class Avg</span>
+                             <span className="text-lg font-black text-indigo-700">
+                                {scorecardData.scorecard.length > 0 ? Math.round(scorecardData.scorecard.reduce((a, b) => a + b.percentage, 0) / scorecardData.scorecard.length) : 0}%
+                             </span>
+                          </div>
+                       </div>
+                    </div>
+                    
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-100">
+                          <th className="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Student</th>
+                          {scorecardData.scorecard[0]?.problemBreakdown.map((prob, i) => (
+                             <th key={prob.problemId} className="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest text-center min-w-[120px]">
+                                P{i+1}: {prob.title.length > 15 ? prob.title.substring(0, 15) + '...' : prob.title}
+                             </th>
+                          ))}
+                          <th className="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Total Score</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {scorecardData.scorecard.map(row => (
+                          <tr key={row.studentId} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                            <td className="py-4 px-4">
+                              <p className="font-bold text-slate-800">{row.studentName}</p>
+                              <p className="text-xs text-slate-400">{row.studentEmail}</p>
+                            </td>
+                            {row.problemBreakdown.map(p => (
+                              <td key={p.problemId} className="py-4 px-4 text-center">
+                                <span className={`inline-block px-3 py-1 rounded-lg text-sm font-bold ${p.status === 'accepted' ? 'bg-emerald-100 text-emerald-700' : p.status === 'not_submitted' ? 'bg-slate-100 text-slate-400' : 'bg-red-100 text-red-700'}`}>
+                                  {p.score !== null ? `${p.score}/100` : '-'}
+                                </span>
+                              </td>
+                            ))}
+                            <td className="py-4 px-4 text-right">
+                               <div className="inline-flex flex-col items-end">
+                                  <span className="text-lg font-black text-indigo-600">{row.percentage}%</span>
+                                  <span className="text-[10px] font-bold text-slate-400">{row.totalScore}/{row.maxPossible} PTS</span>
+                               </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 ) : (showCreateAssignment || showEditForm) ? (
                   <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-3xl p-8 border border-slate-200 shadow-xl shadow-slate-200/50">
@@ -505,9 +570,9 @@ const TeacherDashboard = () => {
                           <div className="flex justify-between"><span className="text-slate-500">Due</span><span className="font-semibold text-red-600">{new Date(a.dueDate).toLocaleDateString()}</span></div>
                         </div>
                         <div className="mt-auto grid grid-cols-2 gap-2">
-                          <button onClick={() => viewAssignmentSubmissions(a)} className="col-span-2 bg-indigo-50 text-indigo-700 py-2.5 rounded-xl font-bold text-sm hover:bg-indigo-100 transition flex items-center justify-center gap-2"><Eye className="w-4 h-4"/> View Submissions</button>
+                          <button onClick={() => viewAssignmentScorecard(a)} className="col-span-2 bg-indigo-600 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-indigo-700 transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20"><ClipboardList className="w-4 h-4"/> View Latest Scorecard</button>
+                          <button onClick={() => viewAssignmentSubmissions(a)} className="bg-indigo-50 text-indigo-700 py-2 rounded-xl font-bold text-sm hover:bg-indigo-100 transition flex items-center justify-center gap-2">History</button>
                           <button onClick={() => handleEditAssignment(a)} className="bg-slate-100 text-slate-700 py-2 rounded-xl font-medium text-sm hover:bg-slate-200 transition flex items-center justify-center gap-2">Edit</button>
-                          <button onClick={() => handleDeleteAssignment(a._id)} className="bg-red-50 text-red-600 py-2 rounded-xl font-medium text-sm hover:bg-red-100 transition flex items-center justify-center gap-2">Delete</button>
                         </div>
                       </motion.div>
                     ))}
@@ -580,7 +645,7 @@ const TeacherDashboard = () => {
         </div>
       </main>
 
-      {/* Code Viewer Modal */}
+      {}
       <AnimatePresence>
         {showCodeViewer && selectedSubmission && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 shrink-0">

@@ -18,118 +18,9 @@ const extractAxiosError = (err) => {
   return err.message;
 };
 
-const getLanguageId = (language) => {
-  const languages = { javascript: 63, python: 71, java: 62, c: 50, cpp: 54, csharp: 51, go: 60, ruby: 72, php: 68, rust: 73, typescript: 74 };
-  return languages[language.toLowerCase()] || 71;
-};
+const { evaluateSubmission } = require('../utils/codeEvaluator');
 
-const { parseJudge0Result } = require('../utils/executionResult');
 
-async function evaluateSubmission(code, language, testCases) {
-  const language_id = getLanguageId(language);
-  const results = [];
-  let passedCount = 0;
-
-  for (const tc of testCases) {
-    try {
-      const submissionData = {
-        source_code: Buffer.from(code).toString('base64'),
-        language_id,
-        stdin: tc.input ? Buffer.from(tc.input).toString('base64') : '',
-        expected_output: tc.expectedOutput ? Buffer.from(tc.expectedOutput).toString('base64') : ''
-      };
-
-      if (!judge0.isConfigured()) {
-        throw new Error('Judge0 not configured. Set JUDGE0_API_URL (e.g. http://localhost:2358) or JUDGE0_API_KEY for RapidAPI.');
-      }
-
-      const { baseUrl, config } = judge0.getSubmitConfig();
-      config.params.wait = 'false';
-
-      const res = await axios.post(`${baseUrl}/submissions`, submissionData, config);
-      const token = res.data.token;
-
-      if (!token) throw new Error('Execution failed to return a token');
-
-      // Poll for the result
-      const maxAttempts = 10;
-      const pollInterval = 1000;
-      let attempts = 0;
-      let result = null;
-
-      while (attempts < maxAttempts) {
-        attempts++;
-        const { baseUrl: resultUrl, config: resultConfig } = judge0.getResultConfig();
-        const resultResponse = await axios.get(`${resultUrl}/submissions/${token}`, {
-          ...resultConfig,
-          params: { base64_encoded: 'true' }
-        });
-
-        result = resultResponse.data;
-        if (result.status && result.status.id !== 1 && result.status.id !== 2) {
-          break; // Done processing
-        }
-
-        if (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, pollInterval));
-        }
-      }
-
-      if (!result || (result.status && (result.status.id === 1 || result.status.id === 2))) {
-        throw new Error('Execution took too long to complete.');
-      }
-
-      const parsed = parseJudge0Result(result);
-      
-      let passed = false;
-      let actualOutput = '';
-      let errorType = null;
-      
-      if (!parsed.success) {
-        errorType = parsed.type === 'Compilation Error' ? 'compilation' : 'runtime';
-        actualOutput = parsed.message;
-      } else {
-        const out = parsed.output; // trimmed stdout
-        const exp = (tc.expectedOutput || '').trim();
-        passed = out === exp;
-        actualOutput = out;
-      }
-
-      if (passed) passedCount++;
-
-      results.push({
-        testCase: { 
-          input: tc.isHidden ? 'Hidden' : tc.input, 
-          expectedOutput: tc.isHidden ? 'Hidden' : tc.expectedOutput 
-        },
-        actualOutput: tc.isHidden ? (passed ? 'Output hidden' : (errorType === 'compilation' ? 'Compilation Error' : 'Runtime Error')) : actualOutput,
-        passed,
-        isHidden: tc.isHidden,
-        errorType,
-        executionTime: parseFloat(result.time || 0) * 1000,
-        memoryUsed: (result.memory || 0) / 1024
-      });
-    } catch (err) {
-      results.push({
-        testCase: { 
-          input: tc.isHidden ? 'Hidden' : tc.input, 
-          expectedOutput: tc.isHidden ? 'Hidden' : tc.expectedOutput 
-        },
-        actualOutput: extractAxiosError(err),
-        passed: false,
-        isHidden: tc.isHidden,
-        executionTime: 0,
-        memoryUsed: 0
-      });
-    }
-  }
-
-  const score = testCases.length > 0 ? Math.round((passedCount / testCases.length) * 100) : 0;
-  const status = score === 100 ? 'accepted' : 'wrong_answer';
-  return { score, status, testResults: results };
-}
-
-// Get assignments for a student — STRICTLY filtered by student's own classId
 router.get('/student', auth, requireRole(['student']), async (req, res) => {
   try {
     const studentClassId = req.user.classId;
@@ -137,19 +28,19 @@ router.get('/student', auth, requireRole(['student']), async (req, res) => {
       return res.status(400).json({ message: 'Your account has no class ID assigned. Please contact your administrator.' });
     }
 
-    // KEY FIX: Only fetch assignments whose classId matches the student's classId
+    
     const assignments = await Assignment.find({ isActive: true, classId: studentClassId })
       .populate('teacherId', 'name')
       .populate('problems.problemId', 'title difficulty')
       .sort({ dueDate: 1 });
 
-    // Filter out assignments with invalid problem references
+    
     const validAssignments = assignments.filter(assignment => {
       assignment.problems = assignment.problems.filter(p => p.problemId !== null);
       return assignment.problems.length > 0;
     });
 
-    // Get submission status for each valid assignment
+    
     const assignmentsWithStatus = await Promise.all(
       validAssignments.map(async (assignment) => {
         const submissions = await Submission.find({
@@ -180,7 +71,7 @@ router.get('/student', auth, requireRole(['student']), async (req, res) => {
   }
 });
 
-// Get single assignment details for student
+
 router.get('/:id/student', auth, requireRole(['student']), async (req, res) => {
   try {
     const assignment = await Assignment.findById(req.params.id)
@@ -195,19 +86,19 @@ router.get('/:id/student', auth, requireRole(['student']), async (req, res) => {
       return res.status(404).json({ message: 'Assignment not found' });
     }
 
-    // Enforce class-based access control
+    
     if (assignment.classId !== req.user.classId) {
       return res.status(403).json({ message: 'You are not authorized to access this assignment.' });
     }
 
-    // Filter out invalid problem references
+    
     assignment.problems = assignment.problems.filter(p => p.problemId !== null);
 
     if (assignment.problems.length === 0) {
       return res.status(400).json({ message: 'This assignment has no valid problems available' });
     }
 
-    // Get student's submissions for this assignment
+    
     const submissions = await Submission.find({
       assignmentId: assignment._id,
       studentId: req.user._id,
@@ -231,7 +122,7 @@ router.get('/:id/student', auth, requireRole(['student']), async (req, res) => {
   }
 });
 
-// Submit solution for assignment problem
+
 router.post('/:assignmentId/problems/:problemId/submit', auth, requireRole(['student']), async (req, res) => {
   try {
     const { code, language } = req.body;
@@ -240,23 +131,24 @@ router.post('/:assignmentId/problems/:problemId/submit', auth, requireRole(['stu
       return res.status(400).json({ message: 'Code and language are required' });
     }
 
-    // Verify assignment exists, is active, and belongs to the student's class
+    
     const assignment = await Assignment.findById(req.params.assignmentId);
     if (!assignment || !assignment.isActive) {
       return res.status(404).json({ message: 'Assignment not found' });
     }
 
-    // KEY FIX: Enforce class-based access control on submission
+    
     if (assignment.classId !== req.user.classId) {
       return res.status(403).json({ message: 'You are not authorized to submit to this assignment.' });
     }
 
-    // Check if assignment is past due date
-    if (new Date() > assignment.dueDate) {
-      return res.status(400).json({ message: 'Assignment is past due date' });
-    }
+    
+    
+    
+    
+    
 
-    // Verify problem is part of this assignment
+    
     const problemInAssignment = assignment.problems.find(
       p => p.problemId.toString() === req.params.problemId
     );
@@ -269,10 +161,10 @@ router.post('/:assignmentId/problems/:problemId/submit', auth, requireRole(['stu
       return res.status(404).json({ message: 'Problem details not found' });
     }
 
-    // Evaluate code synchronously since we only have a few test cases usually
+    
     const evaluation = await evaluateSubmission(code, language, problem.testCases || []);
 
-    // Create new submission in a single atomic operation
+    
     const submission = await Submission.create({
       assignmentId: req.params.assignmentId,
       problemId: req.params.problemId,
@@ -282,6 +174,11 @@ router.post('/:assignmentId/problems/:problemId/submit', auth, requireRole(['stu
       status: evaluation.status,
       score: evaluation.score,
       testResults: evaluation.testResults,
+      passedTestCases: evaluation.passedTestCases,
+      totalTestCases: evaluation.totalTestCases,
+      errorMessage: evaluation.errorMessage,
+      executionTime: evaluation.executionTime,
+      memoryUsed: evaluation.memoryUsed,
       submittedAt: new Date(),
       isDraft: false
     });
@@ -296,7 +193,7 @@ router.post('/:assignmentId/problems/:problemId/submit', auth, requireRole(['stu
   }
 });
 
-// Save a draft of the solution (Auto-save)
+
 router.post('/:assignmentId/problems/:problemId/draft', auth, requireRole(['student']), async (req, res) => {
   try {
     const { code, language } = req.body;
@@ -341,7 +238,7 @@ router.post('/:assignmentId/problems/:problemId/draft', auth, requireRole(['stud
   }
 });
 
-// Get student's submissions for an assignment
+
 router.get('/:assignmentId/submissions', auth, requireRole(['student']), async (req, res) => {
   try {
     const submissions = await Submission.find({
@@ -358,7 +255,7 @@ router.get('/:assignmentId/submissions', auth, requireRole(['student']), async (
   }
 });
 
-// Get student's submissions for a specific problem in an assignment
+
 router.get('/:assignmentId/problems/:problemId/submissions', auth, requireRole(['student']), async (req, res) => {
   try {
     const submissions = await Submission.find({
@@ -376,52 +273,73 @@ router.get('/:assignmentId/problems/:problemId/submissions', auth, requireRole([
   }
 });
 
-// Get assignment score for student
+
 router.get('/:assignmentId/score', auth, requireRole(['student']), async (req, res) => {
   try {
-    // Verify assignment exists and student belongs to the same class
+    
     const assignment = await Assignment.findById(req.params.assignmentId);
     if (!assignment) {
       return res.status(404).json({ message: 'Assignment not found' });
     }
 
-    // Enforce class-based access control on score view
+    
     if (assignment.classId !== req.user.classId) {
       return res.status(403).json({ message: 'You are not authorized to view this assignment.' });
     }
 
-    // Get all submissions for this assignment by this student
+    
     const submissions = await Submission.find({
       assignmentId: req.params.assignmentId,
       studentId: req.user._id,
       isDraft: { $ne: true }
     }).populate('problemId', 'title');
 
-    // Calculate total score
+    
     const totalProblems = assignment.problems.length;
-    const gradedSubmissions = submissions.filter(sub => sub.score !== undefined && sub.score !== null);
-    const totalScore = gradedSubmissions.reduce((sum, sub) => sum + (sub.score || 0), 0);
+    const problemScores = [];
+    let totalScore = 0;
+
+    for (const problem of assignment.problems) {
+      const pId = problem.problemId._id.toString();
+      
+      const latestSub = await Submission.findOne({
+        assignmentId: req.params.assignmentId,
+        studentId: req.user._id,
+        problemId: pId,
+        isDraft: { $ne: true }
+      }).sort({ submittedAt: -1 });
+
+      if (latestSub) {
+        totalScore += (latestSub.score || 0);
+        problemScores.push({
+          problemId: latestSub.problemId,
+          problemTitle: problem.problemId.title,
+          score: latestSub.score,
+          status: latestSub.status,
+          feedback: latestSub.feedback,
+          submittedAt: latestSub.submittedAt
+        });
+      } else {
+        problemScores.push({
+          problemId: problem.problemId._id,
+          problemTitle: problem.problemId.title,
+          score: null,
+          status: 'not_submitted',
+          feedback: null,
+          submittedAt: null
+        });
+      }
+    }
+
     const maxPossibleScore = totalProblems * 100;
     const percentage = maxPossibleScore > 0 ? Math.round((totalScore / maxPossibleScore) * 100) : 0;
-
-    // Get problem-wise breakdown
-    const problemScores = assignment.problems.map(problem => {
-      const submission = submissions.find(sub => sub.problemId._id.toString() === problem.problemId._id.toString());
-      return {
-        problemId: problem.problemId._id,
-        problemTitle: problem.problemId.title,
-        score: submission?.score || null,
-        status: submission?.status || 'not_submitted',
-        feedback: submission?.feedback || null,
-        submittedAt: submission?.submittedAt || null
-      };
-    });
+    const gradedCount = problemScores.filter(ps => ps.status !== 'not_submitted').length;
 
     res.json({
       assignmentId: assignment._id,
       assignmentTitle: assignment.title,
       totalProblems,
-      gradedProblems: gradedSubmissions.length,
+      gradedProblems: gradedCount,
       totalScore,
       maxPossibleScore,
       percentage,
@@ -433,9 +351,9 @@ router.get('/:assignmentId/score', auth, requireRole(['student']), async (req, r
   }
 });
 
-// TEACHER ROUTES
 
-// Create new assignment (teacher only)
+
+
 router.post('/', auth, requireRole(['teacher']), async (req, res) => {
   try {
     const {
@@ -477,7 +395,7 @@ router.post('/', auth, requireRole(['teacher']), async (req, res) => {
   }
 });
 
-// Get assignments created by teacher
+
 router.get('/teacher', auth, requireRole(['teacher']), async (req, res) => {
   try {
     const assignments = await Assignment.find({ teacherId: req.user._id })
@@ -491,10 +409,10 @@ router.get('/teacher', auth, requireRole(['teacher']), async (req, res) => {
   }
 });
 
-// Get submissions for an assignment (teacher only)
+
 router.get('/:assignmentId/submissions/teacher', auth, requireRole(['teacher']), async (req, res) => {
   try {
-    // Verify teacher owns this assignment
+    
     const assignment = await Assignment.findOne({
       _id: req.params.assignmentId,
       teacherId: req.user._id
@@ -512,7 +430,7 @@ router.get('/:assignmentId/submissions/teacher', auth, requireRole(['teacher']),
     .populate('problemId', 'title')
     .sort({ submittedAt: -1 });
 
-    // Handle null problem references (if problem was deleted)
+    
     const validSubmissions = submissions.map(sub => {
       const subObj = sub.toObject ? sub.toObject() : sub;
       if (!subObj.problemId) {
@@ -531,12 +449,12 @@ router.get('/:assignmentId/submissions/teacher', auth, requireRole(['teacher']),
   }
 });
 
-// Grade a submission (teacher only) - DISABLED (Auto-grading enabled)
+
 router.put('/submissions/:submissionId/grade', auth, requireRole(['teacher']), async (req, res) => {
   return res.status(400).json({ message: 'Manual grading is disabled. Submissions are auto-graded by the system.' });
 });
 
-// Update assignment (teacher only)
+
 router.put('/:id', auth, requireRole(['teacher']), async (req, res) => {
   try {
     const {
@@ -559,7 +477,7 @@ router.put('/:id', auth, requireRole(['teacher']), async (req, res) => {
       return res.status(404).json({ message: 'Assignment not found' });
     }
 
-    // Update fields
+    
     if (title !== undefined) assignment.title = title;
     if (description !== undefined) assignment.description = description;
     if (problems !== undefined) assignment.problems = problems;
@@ -581,7 +499,7 @@ router.put('/:id', auth, requireRole(['teacher']), async (req, res) => {
   }
 });
 
-// Delete assignment (teacher only)
+
 router.delete('/:id', auth, requireRole(['teacher']), async (req, res) => {
   try {
     const assignment = await Assignment.findOne({
@@ -593,10 +511,10 @@ router.delete('/:id', auth, requireRole(['teacher']), async (req, res) => {
       return res.status(404).json({ message: 'Assignment not found' });
     }
 
-    // Cascade delete submissions so the assignment deleting won't error out
+    
     await Submission.deleteMany({ assignmentId: req.params.id });
 
-    // Then delete the assignment itself
+    
 
     await Assignment.findByIdAndDelete(req.params.id);
 
@@ -607,7 +525,7 @@ router.delete('/:id', auth, requireRole(['teacher']), async (req, res) => {
   }
 });
 
-// Get single assignment for editing (teacher only)
+
 router.get('/:id/edit', auth, requireRole(['teacher']), async (req, res) => {
   try {
     const assignment = await Assignment.findOne({
@@ -619,12 +537,72 @@ router.get('/:id/edit', auth, requireRole(['teacher']), async (req, res) => {
       return res.status(404).json({ message: 'Assignment not found' });
     }
 
-    // Filter out invalid problem references to prevent frontend crashes
+    
     assignment.problems = assignment.problems.filter(p => p.problemId !== null);
 
     res.json(assignment);
   } catch (error) {
     console.error('Get assignment for edit error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
+router.get('/:assignmentId/scorecard/teacher', auth, requireRole(['teacher']), async (req, res) => {
+  try {
+    const assignment = await Assignment.findById(req.params.assignmentId).populate('problems.problemId', 'title');
+    if (!assignment || assignment.teacherId.toString() !== req.user._id.toString()) {
+      return res.status(404).json({ message: 'Assignment not found or unauthorized' });
+    }
+
+    
+    const User = require('../models/User');
+    const students = await User.find({ classId: assignment.classId, role: 'student' }).select('name email');
+
+    const scorecard = await Promise.all(students.map(async (student) => {
+      let studentTotalScore = 0;
+      const problemBreakdown = await Promise.all(assignment.problems.map(async (p) => {
+        const latestSub = await Submission.findOne({
+          assignmentId: assignment._id,
+          studentId: student._id,
+          problemId: p.problemId._id,
+          isDraft: { $ne: true }
+        }).sort({ submittedAt: -1 });
+
+        const score = latestSub ? latestSub.score : 0;
+        studentTotalScore += score;
+
+        return {
+          problemId: p.problemId._id,
+          title: p.problemId.title,
+          score: latestSub ? latestSub.score : null,
+          status: latestSub ? latestSub.status : 'not_submitted',
+          submittedAt: latestSub ? latestSub.submittedAt : null
+        };
+      }));
+
+      const maxPossible = assignment.problems.length * 100;
+      const percentage = maxPossible > 0 ? Math.round((studentTotalScore / maxPossible) * 100) : 0;
+
+      return {
+        studentId: student._id,
+        studentName: student.name,
+        studentEmail: student.email,
+        totalScore: studentTotalScore,
+        maxPossible,
+        percentage,
+        problemBreakdown
+      };
+    }));
+
+    res.json({
+      assignmentTitle: assignment.title,
+      totalProblems: assignment.problems.length,
+      studentsCount: students.length,
+      scorecard
+    });
+  } catch (error) {
+    console.error('Get scorecard error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

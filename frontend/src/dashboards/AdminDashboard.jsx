@@ -70,7 +70,7 @@ const AdminDashboard = () => {
     { id: 'profile', name: 'Admin Profile', icon: User }
   ];
 
-  // Load data based on active tab
+  
   useEffect(() => {
     if (activeTab === 'problems') {
       loadProblems();
@@ -78,7 +78,7 @@ const AdminDashboard = () => {
       loadUsers();
       loadUserStats();
     } else if (activeTab === 'profile') {
-      loadUserStats(); // Load real user stats for profile section
+      loadUserStats(); 
     }
   }, [activeTab]);
 
@@ -104,7 +104,7 @@ const AdminDashboard = () => {
   };
 
   const loadUserStats = async () => { try { setUserStats(await apiCall('/users/stats')); } catch (e) { console.error(e); } };
-  const loadAdminStats = async () => { try { /* setAdminStats(await apiCall('/users/admin/overview')); */ } catch (e) { console.error(e); } };
+  const loadAdminStats = async () => { try {  } catch (e) { console.error(e); } };
 
   const handleCreateProblem = async (e) => {
     if (e?.preventDefault) e.preventDefault();
@@ -237,7 +237,7 @@ const AdminDashboard = () => {
         </motion.button>
       </div>
 
-      {/* Filters and Search Bar */}
+      {}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-6 flex flex-col lg:flex-row gap-4">
         <div className="flex-1 relative">
            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -490,7 +490,7 @@ const AdminDashboard = () => {
         </div>
       </div>
       
-      {/* Removed help section */}
+      {}
     </motion.div>
   );
 
@@ -531,7 +531,7 @@ const AdminDashboard = () => {
         </div>
       </motion.aside>
 
-      {/* Main Content Area */}
+      {}
       <main className="flex-1 flex flex-col min-w-0">
         <header className="h-16 bg-white border-b border-slate-200 flex items-center px-8 shrink-0 sticky top-0 z-30 shadow-sm">
           <h1 className="text-xl font-bold tracking-tight text-slate-800 capitalize">
@@ -553,7 +553,7 @@ const AdminDashboard = () => {
         </div>
       </main>
 
-      {/* Modernized User Form Modal */}
+      {}
       <AnimatePresence>
         {showUserForm && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
@@ -611,7 +611,7 @@ const AdminDashboard = () => {
         )}
       </AnimatePresence>
 
-      {/* Password Change Modal */}
+      {}
       <AnimatePresence>
         {showPasswordChange && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
@@ -638,7 +638,7 @@ const AdminDashboard = () => {
         )}
       </AnimatePresence>
 
-      {/* Edit Profile Modal */}
+      {}
       <AnimatePresence>
         {showEditProfile && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">

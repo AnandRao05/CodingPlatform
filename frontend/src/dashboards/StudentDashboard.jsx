@@ -24,7 +24,7 @@ const StudentDashboard = () => {
   const [showScoreModal, setShowScoreModal] = useState(false);
   const [studentStats, setStudentStats] = useState({ problemsSolved: 0, currentStreak: 0 });
 
-  // Profile forms
+  
   const [profileForm, setProfileForm] = useState({ name: user?.name, email: user?.email });
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '', otp: '' });
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -451,7 +451,7 @@ const StudentDashboard = () => {
         </div>
       </main>
 
-      {/* Assignment Score Modal */}
+      {}
       <AnimatePresence>
         {showScoreModal && assignmentScore && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
