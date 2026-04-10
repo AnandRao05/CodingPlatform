@@ -155,7 +155,10 @@
       user.otpExpires = Date.now() + 10 * 60 * 1000; 
       await user.save();
 
-      await sendOtpEmail(email, otp, 'Login');
+      const emailResult = await sendOtpEmail(email, otp, 'Login');
+      if (emailResult && !emailResult.success) {
+        return res.status(400).json({ message: emailResult.error });
+      }
 
       res.json({ message: 'Secure OTP has been sent to your email.' });
     } catch (error) {
@@ -255,7 +258,10 @@
       user.otpExpires = Date.now() + 10 * 60 * 1000; 
       await user.save();
 
-      await sendOtpEmail(user.email, otp, 'Password Change');
+      const emailResult = await sendOtpEmail(user.email, otp, 'Password Change');
+      if (emailResult && !emailResult.success) {
+        return res.status(400).json({ message: emailResult.error });
+      }
 
       res.json({ message: 'A verification code has been sent to your email for security.' });
     } catch (error) {
@@ -369,7 +375,10 @@
 
       await user.save();
 
-      await sendOtpEmail(email, otp, 'Password Reset');
+      const emailResult = await sendOtpEmail(email, otp, 'Password Reset');
+      if (emailResult && !emailResult.success) {
+        return res.status(400).json({ message: emailResult.error });
+      }
 
       res.json({ message: 'A secure reset link and OTP have been sent to your email.' });
     } catch (error) {

@@ -1,87 +1,121 @@
-const nodemailer = require('nodemailer');
-
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS
-  }
-});
+const axios = require('axios');
+require('dotenv').config();
 
 const sendEmail = async (to, subject, text, html) => {
   try {
-    const mailOptions = {
-      from: `"RGUKT Coding Platform" <${process.env.GMAIL_USER}>`,
-      to,
-      subject,
-      text,
-      html
+    const apiKey = process.env.BREVO_API_KEY;
+    const fromEmail = process.env.EMAIL_FROM;
+
+    // 1. Validate required parameters
+    if (!to || !subject || (!text && !html)) {
+      throw new Error("Missing required email parameters (to, subject, text/html)");
+    }
+
+    // 2. Validate environment variables
+    if (!apiKey) {
+      throw new Error("BREVO_API_KEY is missing in .env configuration");
+    }
+
+    if (!fromEmail) {
+      throw new Error("EMAIL_FROM is missing in .env configuration");
+    }
+
+    // 3. Validate API key type
+    if (apiKey.startsWith('xsmtpsib')) {
+      throw new Error("Invalid Brevo API Key format. You provided an SMTP key (starts with 'xsmtpsib-'). The Brevo HTTP API requires an API Key that starts with 'xkeysib-'.");
+    }
+
+    if (!apiKey.startsWith('xkeysib-')) {
+      throw new Error("Invalid Brevo API Key format. Key must start with 'xkeysib-'");
+    }
+
+    console.log(`\n[Brevo Mailer] Initiating email delivery...`);
+    console.log(`[Brevo Mailer] To: ${to}`);
+    console.log(`[Brevo Mailer] From: ${fromEmail}`);
+
+    const payload = {
+      sender: {
+        name: "RGUKT Coding Platform",
+        email: fromEmail
+      },
+      to: [{ email: to }],
+      subject: subject,
+      textContent: text,
+      htmlContent: html
     };
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log('Email sent: ' + info.response);
-    return info;
+    const response = await axios.post(
+      "https://api.brevo.com/v3/smtp/email",
+      payload,
+      {
+        headers: {
+          "api-key": apiKey,
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        }
+      }
+    );
+
+    console.log(`[Brevo Mailer] ✅ Email sent successfully!`);
+    console.log(`[Brevo Mailer] Message ID: ${response.data.messageId}\n`);
+
+    return { 
+      success: true, 
+      data: response.data 
+    };
+
   } catch (error) {
-    console.error('Email send error:', error);
-    
-    console.log(`\n\x1b[33m--- GMAIL SIMULATION FOR ${to} ---\x1b[0m`);
-    console.log(`\x1b[1mSubject:\x1b[0m ${subject}`);
-    console.log(`\x1b[1mBody:\x1b[0m    ${text}`);
-    console.log(`\x1b[33m---------------------------------------\x1b[0m\n`);
-    return { mock: true };
+    console.error(`\n[Brevo Mailer] ❌ Email sending failed:`);
+    const errorMessage = error.response?.data || error.message;
+    console.error(errorMessage, '\n');
+
+    return {
+      success: false,
+      error: errorMessage
+    };
   }
 };
 
-const sendOtpEmail = async (email, otp, type = 'Account Verification') => {
+// 🔐 OTP Email Function
+const sendOtpEmail = async (email, otp, type = "Account Verification") => {
   const subject = `${otp} is your ${type} code`;
-  const text = `Your secure code for ${type} is: ${otp}. It expires in 10 minutes.`;
+  const text = `Your OTP for ${type} is ${otp}. It expires in 10 minutes.`;
   const html = `
-    <!DOCTYPE html>
     <html>
-    <head>
-      <meta charset="utf-8">
-      <style>
-        .container { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background-color: #f8fafc; }
-        .card { background-color: #ffffff; border-radius: 24px; padding: 40px; border: 1px solid #e2e8f0; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-        .logo { display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); border-radius: 16px; margin-bottom: 24px; }
-        .logo-text { color: #ffffff; font-size: 20px; font-weight: 800; letter-spacing: -0.025em; }
-        .header { font-size: 24px; font-weight: 800; color: #1e293b; margin-bottom: 8px; text-align: center; }
-        .subheader { font-size: 16px; color: #64748b; margin-bottom: 32px; text-align: center; }
-        .otp-box { background-color: #f1f5f9; border: 2px dashed #cbd5e1; border-radius: 20px; padding: 32px; text-align: center; margin-bottom: 32px; }
-        .otp-code { font-size: 40px; font-weight: 900; letter-spacing: 0.25em; color: #1e293b; font-family: "Courier New", Courier, monospace; }
-        .expiry { text-align: center; font-size: 14px; font-weight: 600; color: #ef4444; margin-bottom: 32px; }
-        .footer { text-align: center; border-top: 1px solid #e2e8f0; padding-top: 32px; }
-        .footer-text { font-size: 12px; color: #94a3b8; line-height: 1.6; }
-        .brand { font-weight: 700; color: #4f46e5; margin-top: 8px; }
-      </style>
-    </head>
-    <body style="margin: 0; padding: 0;">
-      <div class="container">
-        <div class="card">
-          <div style="text-align: center;">
-            <div class="logo"><span class="logo-text">RGUKT CODING</span></div>
+      <body style="font-family: Arial, sans-serif; text-align: center; padding: 40px; background-color: #f9f9f9;">
+        <div style="background-color: #ffffff; padding: 30px; border-radius: 8px; max-width: 500px; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          <h2 style="color: #333333;">${type}</h2>
+          <p style="color: #555555; font-size: 16px;">Here is your secure One-Time Password:</p>
+          <div style="background-color: #f0f4f8; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h1 style="letter-spacing: 8px; color: #1e40af; margin: 0; font-size: 36px;">${otp}</h1>
           </div>
-          <h1 class="header">Secure Verification Code</h1>
-          <p class="subheader">You requested a verification code for <strong>${type}</strong>. Please use the terminal below to proceed.</p>
-          
-          <div class="otp-box">
-             <div class="otp-code">${otp}</div>
-          </div>
-          
-          <p class="expiry">Expires in 10 minutes</p>
-          
-          <div class="footer">
-            <p class="footer-text">
-              If you didn't request this code, you can safely ignore this email. Someone may have entered your address by mistake.
-            </p>
-            <div class="brand">RGUKT Advanced Coding Division</div>
-          </div>
+          <p style="color: #ef4444; font-weight: bold;">Expires in 10 minutes</p>
+          <hr style="border: none; border-top: 1px solid #eeeeee; margin-top: 30px;" />
+          <p style="color: #999999; font-size: 12px; margin-top: 20px;">If you didn't request this code, you can safely ignore this email.</p>
         </div>
-      </div>
-    </body>
+      </body>
     </html>
   `;
-  return sendEmail(email, subject, text, html);
+
+  // Send the actual OTP to the user
+  const result = await sendEmail(email, subject, text, html);
+
+  // Notify the Admin/Sender about the delivery status
+  const fromEmail = process.env.EMAIL_FROM;
+  if (fromEmail) {
+    if (result.success) {
+      const adminSub = `✅ OTP Sent Successfully to ${email}`;
+      const adminTxt = `An OTP for ${type} has been successfully dispatched to the receiver: ${email}.`;
+      // Trigger notification asynchronously so we don't slow down the user's login flow
+      sendEmail(fromEmail, adminSub, adminTxt, `<p>${adminTxt}</p>`).catch(err => console.error("Admin Notification Error:", err));
+    } else {
+      const adminSub = `❌ Failed to send OTP to ${email}`;
+      const adminTxt = `Failed to deliver an OTP for ${type} to an invalid or rejected receiver: ${email}. Error details: ${JSON.stringify(result.error)}`;
+      sendEmail(fromEmail, adminSub, adminTxt, `<p>${adminTxt}</p>`).catch(err => console.error("Admin Notification Error:", err));
+    }
+  }
+
+  return result;
 };
 
 module.exports = { sendEmail, sendOtpEmail };

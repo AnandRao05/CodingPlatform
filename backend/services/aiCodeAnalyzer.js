@@ -12,7 +12,7 @@ async function analyzeCodeWithAI(code, language) {
 
     
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-flash-latest",
+      model: "gemini-1.5-flash",
       generationConfig: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -29,18 +29,28 @@ async function analyzeCodeWithAI(code, language) {
           required: ["timeComplexity", "spaceComplexity", "readability", "naming", "optimization", "bugs", "bestPractices"]
         }
       }
-    }, { apiVersion: "v1beta" });
+    }); // removed specific apiVersion v1beta since 1.5-flash defaults to stable
     
-    const prompt = `You are a professional code reviewer. Analyze the following ${language} code and provide detailed feedback for each field in the requested schema.
-    
-    CODE:
-    ${code}`;
+    const prompt = `You are an elite software engineer, architect, and professional code reviewer. You are tasked with analyzing the following ${language} code submission.
 
-    
+Provide a comprehensive, senior-level code review focusing on the following areas:
+- timeComplexity: Provide the precise Big-O notation and a brief, expert explanation of why.
+- spaceComplexity: Provide the precise Big-O notation and explain the memory allocation and potential bottlenecks.
+- readability: Evaluate code structure, formatting, and overall cognitive complexity.
+- naming: Assess the variable and function names. Are they descriptive, concise, and following ${language} conventions?
+- optimization: Suggest concrete, advanced ways to improve the algorithm's performance or efficiency.
+- bugs: Identify any subtle bugs, unhandled edge cases, security vulnerabilities, or potential runtime errors.
+- bestPractices: Highlight adherence to or deviations from modern ${language} industry standards and established design patterns.
+
+Ensure your tone is constructive, highly professional, actionable, and educational for the developer.
+
+CODE TO ANALYZE:
+${code}`;
+
     const requestPromise = model.generateContent(prompt);
     
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error("AI Analysis request timed out")), 15000);
+      setTimeout(() => reject(new Error("AI Analysis request timed out")), 45000);
     });
 
     const result = await Promise.race([requestPromise, timeoutPromise]);

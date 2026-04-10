@@ -121,8 +121,8 @@ async function evaluateSubmission(code, language, testCases) {
         passed,
         isHidden: tc.isHidden || false,
         errorType: parsed.type !== 'success' ? parsed.type : null,
-        executionTime: parsed.time,
-        memoryUsed: parsed.memory
+        executionTime: parseFloat(parsed.time) || 0,
+        memoryUsed: parseFloat(parsed.memory) || 0
       };
     });
 
@@ -133,9 +133,9 @@ async function evaluateSubmission(code, language, testCases) {
     let overallStatus = 'accepted';
     let errorMessage = '';
 
-    const compilationError = testResults.find(r => r.errorType === 'compilation');
-    const runtimeError = testResults.find(r => r.errorType === 'runtime');
-    const timeoutError = testResults.find(r => r.errorType === 'timeout');
+    const compilationError = testResults.find(r => r.errorType === 'Compilation Error' || r.errorType === 'Syntax Error');
+    const runtimeError = testResults.find(r => r.errorType === 'Runtime Error');
+    const timeoutError = testResults.find(r => r.errorType === 'Time Limit Exceeded');
 
     if (compilationError) {
       overallStatus = 'compilation_error';
