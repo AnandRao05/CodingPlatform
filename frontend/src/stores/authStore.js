@@ -4,10 +4,7 @@ import Cookies from 'js-cookie';
 
 
 const getApiBaseUrl = () => {
-  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-  
-  if (import.meta.env.DEV) return '/api';
-  return 'http://localhost:3000/api';
+  return import.meta.env.VITE_API_URL;
 };
 
 const useAuthStore = create(
