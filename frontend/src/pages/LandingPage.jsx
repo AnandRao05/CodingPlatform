@@ -84,25 +84,43 @@ const LandingPage = () => {
             <div className="w-20 h-1.5 bg-indigo-500 mx-auto rounded-full"></div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               { 
+                icon: Shield, 
+                title: 'Secure Authentication', 
+                desc: 'Robust login framework with email OTP verification and dedicated dashboards for Students, Teachers, and Admins.',
+                color: 'from-emerald-500 to-teal-400'
+              },
+              { 
+                icon: Cpu, 
+                title: 'AI Code Reviews', 
+                desc: 'Receive instant, professional feedback powered by Google Gemini on time complexity, readability, and performance for your code.',
+                color: 'from-amber-500 to-orange-400'
+              },
+              { 
+                icon: Terminal, 
+                title: 'Live Code Execution', 
+                desc: 'Compile, test, and run your code securely in real-time across multiple languages powered by the Judge0 engine.',
+                color: 'from-rose-500 to-red-400'
+              },
+              { 
                 icon: Layout, 
-                title: 'Student Interface', 
-                desc: 'A LeetCode-inspired workspace with Monaco Editor, real-time testing, and submission history tracking.',
+                title: 'LeetCode-Style IDE', 
+                desc: 'A premium development environment featuring Monaco Editor with integrated automated testcase validation.',
                 color: 'from-blue-500 to-cyan-400'
               },
               { 
                 icon: Users, 
-                title: 'Teacher Control', 
-                desc: 'Easily manage assignments, track student performance, and create custom algorithmic challenges.',
+                title: 'Assignment Management', 
+                desc: 'Teachers can assign customized algorithmic tasks, set strict deadlines, and automatically grade student submissions.',
                 color: 'from-indigo-500 to-purple-400'
               },
               { 
-                icon: Shield, 
-                title: 'Root Admin', 
-                desc: 'Complete oversight of the platform. Manage users, security policies, and system-wide configurations.',
-                color: 'from-rose-500 to-amber-400'
+                icon: CheckCircle2, 
+                title: 'Progress Analytics', 
+                desc: 'Track problems solved, assignment accuracy scores, and maintain a daily learning streak to stay motivated.',
+                color: 'from-pink-500 to-rose-400'
               }
             ].map((feature, i) => (
               <motion.div 
