@@ -22,6 +22,9 @@ function getErrorType(result) {
   if (statusId === COMPILATION_STATUS_ID) {
     return 'Compilation Error';
   }
+  if (statusId === 11) {
+    return 'Time Limit Exceeded';
+  }
   if (RUNTIME_STATUS_IDS.includes(statusId)) {
     return 'Runtime Error';
   }

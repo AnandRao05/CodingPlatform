@@ -446,8 +446,8 @@ const TeacherDashboard = () => {
                               </div>
                               <div className="bg-white p-4 rounded-xl border border-slate-200">
                                 <p className="text-sm font-semibold text-slate-700 mb-2">Problem: {sub.problemId.title}</p>
-                                <div className="bg-slate-900 rounded-lg p-3 overflow-x-auto">
-                                  <pre className="text-xs text-blue-300 font-mono"><code>{sub.code.length > 200 ? sub.code.substring(0,200) + '...' : sub.code}</code></pre>
+                                <div className="bg-slate-900 rounded-lg p-3 max-h-80 overflow-auto">
+                                  <pre className="text-xs text-blue-300 font-mono whitespace-pre"><code>{sub.code}</code></pre>
                                 </div>
                               </div>
                               {sub.feedback && <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl text-sm text-indigo-900"><span className="font-bold mr-2">Feedback given:</span>{sub.feedback}</div>}
