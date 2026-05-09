@@ -3,8 +3,7 @@ import useAuthStore from './stores/authStore';
 import Navigation from './components/Navigation';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
-import StudentSignup from './pages/StudentSignup';
-import TeacherSignup from './pages/TeacherSignup';
+
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
