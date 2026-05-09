@@ -11,7 +11,7 @@ async function listModels() {
     console.log('Available Models (v1beta):');
     res.data.models.forEach(m => console.log(`- ${m.name} (${m.supportedGenerationMethods.join(', ')})`));
   } catch (error) {
-    console.error('❌ Error listing models:', error.response?.data || error.message);
+    console.error(' Error listing models:', error.response?.data || error.message);
   }
 }
 
