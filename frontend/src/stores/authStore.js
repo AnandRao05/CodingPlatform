@@ -45,7 +45,7 @@ const useAuthStore = create(
           Cookies.set('jwt', token, {
             expires: 7, 
             secure: import.meta.env.PROD,
-            sameSite: 'strict'
+            sameSite: 'None'
           });
 
           
@@ -80,8 +80,8 @@ const useAuthStore = create(
           
           Cookies.set('jwt', response.data.token, {
             expires: 7, 
-            secure: false, 
-            sameSite: 'strict'
+            secure: import.meta.env.PROD, 
+            sameSite: 'None'
           });
 
           
