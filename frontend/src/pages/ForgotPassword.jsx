@@ -166,10 +166,11 @@ const ForgotPassword = () => {
                 <input
                   type="email"
                   value={email}
-                  disabled={showResetFields}
+                  readOnly={showResetFields}
                   onChange={(e) => setEmail(e.target.value)}
                   className={`w-full bg-[#111] border border-[#222] focus:border-indigo-500/50 text-white pl-12 pr-4 py-3.5 rounded-xl outline-none transition-all shadow-inner placeholder:text-[#333] font-medium ${showResetFields ? 'opacity-50 cursor-not-allowed' : ''}`}
                   placeholder="name@example.com"
+                  autoComplete="username"
                   required
                 />
               </div>
@@ -191,6 +192,7 @@ const ForgotPassword = () => {
                       onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                       className="w-full bg-[#111] border border-[#222] focus:border-indigo-500/50 text-white px-4 py-3.5 rounded-xl outline-none transition-all shadow-inner text-center font-black tracking-[0.5em] text-lg"
                       placeholder="000000"
+                      autoComplete="one-time-code"
                       required
                     />
                   </div>
@@ -203,6 +205,7 @@ const ForgotPassword = () => {
                       onChange={(e) => setPassword(e.target.value)}
                       className="w-full bg-[#111] border border-[#222] focus:border-indigo-500/50 text-white px-4 py-3.5 rounded-xl outline-none transition-all shadow-inner"
                       placeholder="Min. 6 characters"
+                      autoComplete="new-password"
                       required
                     />
                   </div>
@@ -215,6 +218,7 @@ const ForgotPassword = () => {
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       className="w-full bg-[#111] border border-[#222] focus:border-indigo-500/50 text-white px-4 py-3.5 rounded-xl outline-none transition-all shadow-inner"
                       placeholder="Repeat password"
+                      autoComplete="new-password"
                       required
                     />
                   </div>
