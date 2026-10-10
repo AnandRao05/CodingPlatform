@@ -52,7 +52,8 @@ const sendEmail = async (to, subject, text, html) => {
           "api-key": apiKey,
           "Content-Type": "application/json",
           "Accept": "application/json"
-        }
+        },
+        timeout: 15000
       }
     );
 
@@ -66,12 +67,23 @@ const sendEmail = async (to, subject, text, html) => {
 
   } catch (error) {
     console.error(`\n[Brevo Mailer] ❌ Email sending failed:`);
-    const errorMessage = error.response?.data || error.message;
-    console.error(errorMessage, '\n');
+    const errorData = error.response?.data;
+    const rawError = errorData || error.message;
+    console.error(rawError, '\n');
+
+    // Extract a clean string error message so callers and React never receive raw objects
+    let cleanMessage = "Failed to send email";
+    if (typeof errorData === "string") {
+      cleanMessage = errorData;
+    } else if (errorData && typeof errorData === "object") {
+      cleanMessage = errorData.message || errorData.error || JSON.stringify(errorData);
+    } else if (error.message) {
+      cleanMessage = error.message;
+    }
 
     return {
       success: false,
-      error: errorMessage
+      error: cleanMessage
     };
   }
 };

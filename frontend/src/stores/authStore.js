@@ -69,33 +69,33 @@ const useAuthStore = create(
       },
 
       
-      signup: async (userData) => {
-        try {
-          set({ loading: true });
-          const response = await axios.post(`${get().API_BASE_URL}/auth/signup`, userData);
+      // signup: async (userData) => {
+      //   try {
+      //     set({ loading: true });
+      //     const response = await axios.post(`${get().API_BASE_URL}/auth/signup`, userData);
 
           
-          Cookies.set('jwt', response.data.token, {
-            expires: 7, 
-            secure: import.meta.env.PROD, 
-            sameSite: 'None'
-          });
+      //     Cookies.set('jwt', response.data.token, {
+      //       expires: 7, 
+      //       secure: import.meta.env.PROD, 
+      //       sameSite: 'None'
+      //     });
 
           
-          set({
-            token: response.data.token,
-            user: response.data.user,
-            isAuthenticated: true,
-            loading: false
-          });
+      //     set({
+      //       token: response.data.token,
+      //       user: response.data.user,
+      //       isAuthenticated: true,
+      //       loading: false
+      //     });
 
-          return { success: true };
-        } catch (error) {
-          set({ loading: false });
-          const errorMessage = error.response?.data?.message || error.message || 'Signup failed';
-          return { success: false, error: errorMessage };
-        }
-      },
+      //     return { success: true };
+      //   } catch (error) {
+      //     set({ loading: false });
+      //     const errorMessage = error.response?.data?.message || error.message || 'Signup failed';
+      //     return { success: false, error: errorMessage };
+      //   }
+      // },
 
       
       logout: async () => {

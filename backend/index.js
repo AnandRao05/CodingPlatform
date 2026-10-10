@@ -10,22 +10,44 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 
-app.use(cors(
-  {
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
-    credentials:true,
-  }
-));
+const allowedOrigins = [
+  "http://localhost:5173",
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g. curl, Postman)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS: origin '${origin}' not allowed`));
+    }
+  },
+  credentials: true,
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/online-coding-platform', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log('Connected to MongoDB'))
-.catch(err => console.error('MongoDB connection error:', err));
+const connectWithRetry = (retries = 5, delay = 3000) => {
+  mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/online-coding-platform', {
+    serverSelectionTimeoutMS: 10000,
+    connectTimeoutMS: 10000,
+  })
+    .then(() => console.log('Connected to MongoDB'))
+    .catch(err => {
+      console.error(`MongoDB connection error (${retries} retries left):`, err.message);
+      if (retries > 0) {
+        console.log(`Retrying in ${delay / 1000}s...`);
+        setTimeout(() => connectWithRetry(retries - 1, delay), delay);
+      } else {
+        console.error('Could not connect to MongoDB after multiple retries. Check your Atlas IP allowlist and network.');
+      }
+    });
+};
+
+connectWithRetry();
 
 
 const authRoutes = require('./routes/auth');

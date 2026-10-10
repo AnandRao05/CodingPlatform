@@ -36,13 +36,16 @@ const ForgotPassword = () => {
       
       const data = await res.json();
       if (res.ok) {
-        setSuccess(data.message);
+        setSuccess(data.message || 'OTP sent successfully');
         setShowResetFields(true);
       } else {
-        setError(data.message || 'Something went wrong');
+        const errorMsg = typeof data.message === 'string'
+          ? data.message
+          : (data.message?.message || (data.message ? JSON.stringify(data.message) : 'Something went wrong'));
+        setError(errorMsg);
       }
     } catch (err) {
-      setError('Connection error. Please try again.');
+      setError(err.message || 'Connection error. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -151,7 +154,7 @@ const ForgotPassword = () => {
                 className="bg-rose-500/10 border border-rose-500/20 p-4 rounded-xl mb-8 flex items-center gap-3 text-rose-400 text-sm font-medium"
               >
                 <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></div>
-                {error}
+                {typeof error === 'string' ? error : JSON.stringify(error)}
               </motion.div>
             )}
           </AnimatePresence>
