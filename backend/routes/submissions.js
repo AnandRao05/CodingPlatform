@@ -68,4 +68,29 @@ router.post('/:id/analyze-ai', auth, async (req, res) => {
   }
 });
 
+// Check submission grading status (for polling queued / evaluating jobs)
+router.get('/:id/status', auth, async (req, res) => {
+  try {
+    const submission = await Submission.findById(req.params.id);
+    if (!submission) {
+      return res.status(404).json({ message: 'Submission not found' });
+    }
+
+    // Role check: student can only check their own submission, teachers/admins can check any
+    if (req.user.role === 'student' && submission.studentId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to view this submission status' });
+    }
+
+    res.json({
+      success: true,
+      submissionId: submission._id,
+      status: submission.status,
+      submission
+    });
+  } catch (error) {
+    console.error('Check submission status error:', error);
+    res.status(500).json({ message: 'Server error checking status' });
+  }
+});
+
 module.exports = router;

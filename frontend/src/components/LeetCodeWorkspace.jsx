@@ -351,6 +351,101 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
     
     setTestCases(prev => prev.map(tc => ({ ...tc, actualOutput: '', passed: null, error: false })));
 
+    // Helper to format and display final submission results
+    const processSubmissionResult = (sub, isPractice = false) => {
+      const backendTests = sub.testResults || [];
+      const mappedTestCases = backendTests.map(tr => ({
+        input: tr.testCase?.input || 'Hidden',
+        expectedOutput: tr.testCase?.expectedOutput || 'Hidden',
+        actualOutput: tr.actualOutput || '',
+        passed: tr.passed,
+        errorType: tr.errorType
+      }));
+      setTestCases(mappedTestCases);
+      setActiveTestCaseIdx(0);
+
+      const passedCount = mappedTestCases.filter(t => t.passed).length;
+      const totalCount = mappedTestCases.length;
+      const failedTestCase = mappedTestCases.find(t => !t.passed);
+      let overallStatus = 'Wrong Answer';
+      let body = '';
+
+      if (sub.status === 'accepted') {
+        overallStatus = 'Accepted';
+      } else if (mappedTestCases.some(t => t.errorType === 'compilation')) {
+        overallStatus = 'Compilation Error';
+        body = mappedTestCases.find(t => t.errorType === 'compilation')?.actualOutput || '';
+      } else if (mappedTestCases.some(t => t.errorType === 'runtime')) {
+        overallStatus = 'Runtime Error';
+        body = mappedTestCases.find(t => t.errorType === 'runtime')?.actualOutput || '';
+      } else if (failedTestCase) {
+        if (failedTestCase.actualOutput?.toLowerCase().includes('error') || failedTestCase.actualOutput?.toLowerCase().includes('exception')) {
+          overallStatus = 'Runtime Error';
+          body = failedTestCase.actualOutput;
+        }
+      }
+
+      setExecutionResult({
+        status: overallStatus,
+        type: overallStatus === 'Accepted' ? 'success' : 'error',
+        passed: sub.passedTestCases || passedCount,
+        total: sub.totalTestCases || totalCount,
+        score: sub.score,
+        isSubmission: true,
+        isPractice,
+        executionTime: sub.executionTime,
+        memoryUsed: sub.memoryUsed,
+        body: sub.errorMessage || body || (overallStatus === 'Wrong Answer' ? '' : 'No detailed error available.')
+      });
+      setSubmissionHistory(sub);
+      fetchSubmissions();
+      onSubmit && onSubmit();
+    };
+
+    // Helper to poll queue status until complete
+    const pollQueueResult = async (submissionId, isPractice = false) => {
+      setExecutionResult({ status: 'Queued in line...', type: 'loading' });
+      const maxPolls = 40; // 60 seconds max
+      let polls = 0;
+
+      while (polls < maxPolls) {
+        if (currentExecutionId !== executionId.current) return;
+        await new Promise(r => setTimeout(r, 1500));
+        polls++;
+
+        try {
+          const pollRes = await fetch(`${API_BASE_URL}/submissions/${submissionId}/status`, {
+            headers: getAuthHeaders()
+          });
+          if (!pollRes.ok) continue;
+          const pollData = await pollRes.json();
+          const currentSub = pollData.submission;
+
+          if (!currentSub) continue;
+
+          if (currentSub.status === 'evaluating') {
+            setExecutionResult({ status: 'Evaluating test cases...', type: 'loading' });
+          } else if (currentSub.status !== 'queued') {
+            if (currentExecutionId === executionId.current) {
+              processSubmissionResult(currentSub, isPractice);
+            }
+            return;
+          }
+        } catch (pollErr) {
+          console.warn('Poll status error:', pollErr);
+        }
+      }
+
+      if (currentExecutionId === executionId.current) {
+        setExecutionResult({
+          status: 'Grading Queued',
+          type: 'loading',
+          body: 'Your submission is taking a moment to evaluate under high volume. Check the Submissions tab shortly!'
+        });
+        fetchSubmissions();
+      }
+    };
+
     try {
       if (assignment) {
         const res = await fetch(`${API_BASE_URL}/assignments/${assignment.assignment._id}/problems/${problem._id}/submit`, {
@@ -359,59 +454,16 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
           body: JSON.stringify({ code, language })
         });
         const data = await res.json();
-        
-        
+
         if (currentExecutionId !== executionId.current) return;
-
         if (!res.ok) throw new Error(data.message);
-        
-        const backendTests = data.submission.testResults || [];
-        const mappedTestCases = backendTests.map(tr => ({
-          input: tr.testCase?.input || 'Hidden',
-          expectedOutput: tr.testCase?.expectedOutput || 'Hidden',
-          actualOutput: tr.actualOutput || '',
-          passed: tr.passed,
-          errorType: tr.errorType
-        }));
-        setTestCases(mappedTestCases);
-        setActiveTestCaseIdx(0);
 
-        const passedCount = mappedTestCases.filter(t => t.passed).length;
-        const totalCount = mappedTestCases.length;
-        const failedTestCase = mappedTestCases.find(t => !t.passed);
-        let overallStatus = 'Wrong Answer';
-        let body = '';
-        
-        if (data.submission.status === 'accepted') {
-          overallStatus = 'Accepted';
-        } else if (mappedTestCases.some(t => t.errorType === 'compilation')) {
-          overallStatus = 'Compilation Error';
-          body = mappedTestCases.find(t => t.errorType === 'compilation')?.actualOutput || '';
-        } else if (mappedTestCases.some(t => t.errorType === 'runtime')) {
-          overallStatus = 'Runtime Error';
-          body = mappedTestCases.find(t => t.errorType === 'runtime')?.actualOutput || '';
-        } else if (failedTestCase) {
-           // Check if it's a silent runtime error
-           if (failedTestCase.actualOutput?.toLowerCase().includes('error') || failedTestCase.actualOutput?.toLowerCase().includes('exception')) {
-              overallStatus = 'Runtime Error';
-              body = failedTestCase.actualOutput;
-           }
+        const sub = data.submission;
+        if (data.status === 'queued' || sub?.status === 'queued') {
+          await pollQueueResult(data.submissionId || sub._id, false);
+        } else {
+          processSubmissionResult(sub, false);
         }
-        
-        setExecutionResult({ 
-          status: overallStatus, 
-          type: overallStatus === 'Accepted' ? 'success' : 'error',
-          passed: data.submission.passedTestCases || passedCount,
-          total: data.submission.totalTestCases || totalCount,
-          score: data.submission.score,
-          isSubmission: true,
-          executionTime: data.submission.executionTime,
-          memoryUsed: data.submission.memoryUsed,
-          body: data.submission.errorMessage || body || (overallStatus === 'Wrong Answer' ? '' : 'No detailed error available.')
-        });
-        setSubmissionHistory(data.submission);
-        fetchSubmissions(); // Refresh history list
-        onSubmit && onSubmit(); 
       } else if (problem) {
         // Practice mode submission
         const res = await fetch(`${API_BASE_URL}/code/practice/${problem._id}/submit`, {
@@ -424,53 +476,12 @@ const LeetCodeWorkspace = ({ problem, assignment, onSubmit, onBack, onProblemCha
         if (currentExecutionId !== executionId.current) return;
         if (!res.ok) throw new Error(data.message);
 
-        const backendTests = data.submission.testResults || [];
-        const mappedTestCases = backendTests.map(tr => ({
-          input: tr.testCase?.input || 'Hidden',
-          expectedOutput: tr.testCase?.expectedOutput || 'Hidden',
-          actualOutput: tr.actualOutput || '',
-          passed: tr.passed,
-          errorType: tr.errorType
-        }));
-        setTestCases(mappedTestCases);
-        setActiveTestCaseIdx(0);
-
-        const passedCount = mappedTestCases.filter(t => t.passed).length;
-        const totalCount = mappedTestCases.length;
-        const failedTestCase = mappedTestCases.find(t => !t.passed);
-        let overallStatus = 'Wrong Answer';
-        let body = '';
-
-        if (data.submission.status === 'accepted') {
-          overallStatus = 'Accepted';
-        } else if (mappedTestCases.some(t => t.errorType === 'compilation')) {
-          overallStatus = 'Compilation Error';
-          body = mappedTestCases.find(t => t.errorType === 'compilation')?.actualOutput || '';
-        } else if (mappedTestCases.some(t => t.errorType === 'runtime')) {
-          overallStatus = 'Runtime Error';
-          body = mappedTestCases.find(t => t.errorType === 'runtime')?.actualOutput || '';
-        } else if (failedTestCase) {
-          if (failedTestCase.actualOutput?.toLowerCase().includes('error') || failedTestCase.actualOutput?.toLowerCase().includes('exception')) {
-            overallStatus = 'Runtime Error';
-            body = failedTestCase.actualOutput;
-          }
+        const sub = data.submission;
+        if (data.status === 'queued' || sub?.status === 'queued') {
+          await pollQueueResult(data.submissionId || sub._id, true);
+        } else {
+          processSubmissionResult(sub, true);
         }
-
-        setExecutionResult({
-          status: overallStatus,
-          type: overallStatus === 'Accepted' ? 'success' : 'error',
-          passed: data.submission.passedTestCases || passedCount,
-          total: data.submission.totalTestCases || totalCount,
-          score: data.submission.score, 
-          isSubmission: true,
-          isPractice: true,
-          executionTime: data.submission.executionTime,
-          memoryUsed: data.submission.memoryUsed,
-          body: data.submission.errorMessage || body
-        });
-        setSubmissionHistory(data.submission);
-        fetchSubmissions();
-        onSubmit && onSubmit();
       } else {
         await handleRun();
         if (currentExecutionId === executionId.current) {

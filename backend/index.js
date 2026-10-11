@@ -1,10 +1,11 @@
+require('./config/dnsPatch');
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 
-
 dotenv.config();
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -34,6 +35,7 @@ const connectWithRetry = (retries = 5, delay = 3000) => {
   mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/online-coding-platform', {
     serverSelectionTimeoutMS: 10000,
     connectTimeoutMS: 10000,
+    family: 4, // Force IPv4 to prevent IPv6 ETIMEDOUT hangs
   })
     .then(() => console.log('Connected to MongoDB'))
     .catch(err => {
@@ -62,6 +64,8 @@ app.use('/api/problems', problemRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/submissions', submissionRoutes);
+
+// BullMQ worker is initialized automatically in config/redis.js when Redis is ready
 
 
 app.get('/api/health', (req, res) => {

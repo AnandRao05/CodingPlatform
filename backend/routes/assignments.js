@@ -19,6 +19,12 @@ const extractAxiosError = (err) => {
 };
 
 const { evaluateSubmission } = require('../utils/codeEvaluator');
+const { 
+  acquireSubmissionLock, 
+  releaseSubmissionLock, 
+  addSubmissionJob, 
+  isQueueAvailable 
+} = require('../queues/executionQueue');
 
 
 router.get('/student', auth, requireRole(['student']), async (req, res) => {
@@ -142,6 +148,18 @@ router.post('/:assignmentId/problems/:problemId/submit', auth, requireRole(['stu
       return res.status(403).json({ message: 'You are not authorized to submit to this assignment.' });
     }
 
+    // 1. Strict Deadline Check (with 60-second grace period for network jitter)
+    const gracePeriodMs = 60 * 1000;
+    if (assignment.dueDate && (Date.now() - new Date(assignment.dueDate).getTime() > gracePeriodMs)) {
+      return res.status(400).json({ message: 'Assignment deadline has passed. Submissions are closed.' });
+    }
+
+    // 2. Prevent duplicate rapid submissions (Idempotency lock)
+    const lockAcquired = await acquireSubmissionLock(req.user._id, req.params.problemId);
+    if (!lockAcquired) {
+      return res.status(429).json({ message: 'A submission is already being evaluated for this problem. Please wait.' });
+    }
+
     
     
     
@@ -153,40 +171,82 @@ router.post('/:assignmentId/problems/:problemId/submit', auth, requireRole(['stu
       p => p.problemId.toString() === req.params.problemId
     );
     if (!problemInAssignment) {
+      await releaseSubmissionLock(req.user._id, req.params.problemId);
       return res.status(400).json({ message: 'Problem not part of this assignment' });
     }
 
     const problem = await Problem.findById(req.params.problemId);
     if (!problem) {
+      await releaseSubmissionLock(req.user._id, req.params.problemId);
       return res.status(404).json({ message: 'Problem details not found' });
     }
 
-    
-    const evaluation = await evaluateSubmission(code, language, problem.testCases || []);
+    const submissionTime = new Date();
 
-    
-    const submission = await Submission.create({
-      assignmentId: req.params.assignmentId,
-      problemId: req.params.problemId,
-      studentId: req.user._id,
-      code,
-      language,
-      status: evaluation.status,
-      score: evaluation.score,
-      testResults: evaluation.testResults,
-      passedTestCases: evaluation.passedTestCases,
-      totalTestCases: evaluation.totalTestCases,
-      errorMessage: evaluation.errorMessage,
-      executionTime: evaluation.executionTime,
-      memoryUsed: evaluation.memoryUsed,
-      submittedAt: new Date(),
-      isDraft: false
-    });
+    // 3. Asynchronous BullMQ Queue Flow (when Redis is available)
+    if (isQueueAvailable()) {
+      const submission = await Submission.create({
+        assignmentId: req.params.assignmentId,
+        problemId: req.params.problemId,
+        studentId: req.user._id,
+        code,
+        language,
+        status: 'queued',
+        submittedAt: submissionTime,
+        isDraft: false
+      });
 
-    res.status(submission.isNew ? 201 : 200).json({
-      message: 'Submission graded successfully',
-      submission
-    });
+      await addSubmissionJob({
+        submissionId: submission._id,
+        code,
+        language,
+        testCases: problem.testCases || [],
+        problemId: req.params.problemId,
+        assignmentId: req.params.assignmentId,
+        studentId: req.user._id,
+        isPractice: false
+      });
+
+      return res.status(202).json({
+        message: 'Submission queued for grading',
+        submissionId: submission._id,
+        status: 'queued',
+        submission
+      });
+    }
+
+    // 4. Synchronous Fallback (if Redis is offline / not configured)
+    try {
+      const evaluation = await evaluateSubmission(code, language, problem.testCases || []);
+
+      const submission = await Submission.create({
+        assignmentId: req.params.assignmentId,
+        problemId: req.params.problemId,
+        studentId: req.user._id,
+        code,
+        language,
+        status: evaluation.status,
+        score: evaluation.score,
+        testResults: evaluation.testResults,
+        passedTestCases: evaluation.passedTestCases,
+        totalTestCases: evaluation.totalTestCases,
+        errorMessage: evaluation.errorMessage,
+        executionTime: evaluation.executionTime,
+        memoryUsed: evaluation.memoryUsed,
+        submittedAt: submissionTime,
+        isDraft: false
+      });
+
+      await releaseSubmissionLock(req.user._id, req.params.problemId);
+
+      return res.status(submission.isNew ? 201 : 200).json({
+        message: 'Submission graded successfully',
+        submission
+      });
+    } catch (evalErr) {
+      await releaseSubmissionLock(req.user._id, req.params.problemId);
+      throw evalErr;
+    }
   } catch (error) {
     console.error('Submit solution error:', error);
     res.status(500).json({ message: 'Server error' });

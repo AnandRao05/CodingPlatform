@@ -6,6 +6,12 @@ const { evaluateSubmission } = require('../utils/codeEvaluator');
 const Submission = require('../models/Submission');
 const Problem = require('../models/Problem');
 const { parseJudge0Result } = require('../utils/executionResult');
+const { 
+  acquireSubmissionLock, 
+  releaseSubmissionLock, 
+  addSubmissionJob, 
+  isQueueAvailable 
+} = require('../queues/executionQueue');
 
 const extractAxiosError = (err) => {
   if (err.response?.data) {
@@ -353,31 +359,77 @@ router.post('/practice/:problemId/submit', auth, async (req, res) => {
       return res.status(404).json({ message: 'Problem not found' });
     }
 
-    
-    const evaluation = await evaluateSubmission(code, language, problem.testCases || []);
+    // 1. Prevent duplicate rapid submissions
+    const lockAcquired = await acquireSubmissionLock(req.user._id, problemId);
+    if (!lockAcquired) {
+      return res.status(429).json({ message: 'A practice submission is already being evaluated for this problem. Please wait.' });
+    }
 
-    
-    const submission = await Submission.create({
-      problemId,
-      studentId: req.user._id,
-      code,
-      language,
-      status: evaluation.status,
-      score: evaluation.score, 
-      testResults: evaluation.testResults,
-      passedTestCases: evaluation.passedTestCases,
-      totalTestCases: evaluation.totalTestCases,
-      errorMessage: evaluation.errorMessage,
-      executionTime: evaluation.executionTime,
-      memoryUsed: evaluation.memoryUsed,
-      isPractice: true,
-      isDraft: false
-    });
+    const submissionTime = new Date();
 
-    res.status(201).json({
-      message: 'Practice submission completed',
-      submission
-    });
+    // 2. Asynchronous BullMQ Queue Flow (when Redis is available)
+    if (isQueueAvailable()) {
+      const submission = await Submission.create({
+        problemId,
+        studentId: req.user._id,
+        code,
+        language,
+        status: 'queued',
+        submittedAt: submissionTime,
+        isPractice: true,
+        isDraft: false
+      });
+
+      await addSubmissionJob({
+        submissionId: submission._id,
+        code,
+        language,
+        testCases: problem.testCases || [],
+        problemId,
+        studentId: req.user._id,
+        isPractice: true
+      });
+
+      return res.status(202).json({
+        message: 'Practice submission queued for grading',
+        submissionId: submission._id,
+        status: 'queued',
+        submission
+      });
+    }
+
+    // 3. Synchronous Fallback (if Redis is offline / not configured)
+    try {
+      const evaluation = await evaluateSubmission(code, language, problem.testCases || []);
+
+      const submission = await Submission.create({
+        problemId,
+        studentId: req.user._id,
+        code,
+        language,
+        status: evaluation.status,
+        score: evaluation.score,
+        testResults: evaluation.testResults,
+        passedTestCases: evaluation.passedTestCases,
+        totalTestCases: evaluation.totalTestCases,
+        errorMessage: evaluation.errorMessage,
+        executionTime: evaluation.executionTime,
+        memoryUsed: evaluation.memoryUsed,
+        submittedAt: submissionTime,
+        isPractice: true,
+        isDraft: false
+      });
+
+      await releaseSubmissionLock(req.user._id, problemId);
+
+      return res.status(201).json({
+        message: 'Practice submission completed',
+        submission
+      });
+    } catch (evalErr) {
+      await releaseSubmissionLock(req.user._id, problemId);
+      throw evalErr;
+    }
 
   } catch (error) {
     console.error('Practice submit error:', error);

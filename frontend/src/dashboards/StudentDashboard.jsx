@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LayoutDashboard, BookOpen, ClipboardList, User, LogOut, Menu, CheckCircle, XCircle, Clock, Eye, Play, StopCircle, RefreshCw, Send, Check } from 'lucide-react';
 import useAuthStore from '../stores/authStore';
-import MonacoCodeEditor from '../components/MonacoCodeEditor';
 import LeetCodeWorkspace from '../components/LeetCodeWorkspace';
 
 const StudentDashboard = () => {
@@ -149,7 +148,28 @@ const StudentDashboard = () => {
       const data = await apiCall(`/assignments/${selectedAssignment.assignment._id}/problems/${selectedProblem._id}/submit`, {
         method: 'POST', body: JSON.stringify({ code, language })
       });
-      setSubmissionResult({ overallResult: 'SUBMITTED', message: data.message || 'Solution submitted successfully!', testResults: data.submission?.testResults, passedTests: data.submission?.score === 100 ? 1 : 0 });
+
+      let sub = data.submission;
+      if (data.status === 'queued' || sub?.status === 'queued') {
+        const subId = data.submissionId || sub?._id;
+        for (let i = 0; i < 40; i++) {
+          await new Promise(r => setTimeout(r, 1500));
+          try {
+            const statusData = await apiCall(`/submissions/${subId}/status`);
+            if (statusData?.submission && statusData.submission.status !== 'queued' && statusData.submission.status !== 'evaluating') {
+              sub = statusData.submission;
+              break;
+            }
+          } catch {}
+        }
+      }
+
+      setSubmissionResult({ 
+        overallResult: 'SUBMITTED', 
+        message: data.message || 'Solution submitted successfully!', 
+        testResults: sub?.testResults, 
+        passedTests: sub?.score === 100 ? 1 : 0 
+      });
       loadStudentStats();
     } catch (error) {
       setSubmissionResult({ overallResult: 'ERROR', error: error.message });
